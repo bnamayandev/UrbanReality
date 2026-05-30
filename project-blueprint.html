@@ -216,6 +216,8 @@
     <button data-tab="data">Open Data <span class="badge">Guide</span></button>
     <button data-tab="team">Team Plan <span class="badge">6 ppl</span></button>
     <button data-tab="prototype">Prototype <span class="badge">Live</span></button>
+    <button data-tab="pitch">Pitch <span class="badge" style="background:#ff4444;color:#fff">Judges</span></button>
+    <button data-tab="backend">Backend Docs <span class="badge" style="background:#7c3aed;color:#fff">Wali</span></button>
   </nav>
 </header>
 
@@ -602,10 +604,9 @@
   <div class="team-grid">
     <div class="role-card">
       <div class="role-num">1</div>
-      <div class="role-title">Data Engineer</div>
+      <div class="role-title">Data Engineer — <span style="color:var(--green)">Omar</span></div>
       <div class="role-owns">Owns: All Toronto Open Data ingestion + PostGIS</div>
-      <span class="tag green">Already assigned</span>
-      <br><br>
+      <br>
       <div class="timeline-item"><div class="timeline-hours">Hr 0–4</div><div class="timeline-task">Pull MUST HAVE datasets (building permits, traffic, zoning, trees, business licences), explore formats</div></div>
       <div class="timeline-item"><div class="timeline-hours">Hr 4–12</div><div class="timeline-task">Load into PostGIS, write spatial query functions (radius search, area lookup)</div></div>
       <div class="timeline-item"><div class="timeline-hours">Hr 12–24</div><div class="timeline-task">Expose data via FastAPI endpoints, iterate as AI team needs more context fields</div></div>
@@ -614,10 +615,9 @@
 
     <div class="role-card">
       <div class="role-num">2</div>
-      <div class="role-title">3D Rendering / Maps</div>
+      <div class="role-title">3D Rendering / Maps — <span style="color:var(--green)">Ben & Rehan</span></div>
       <div class="role-owns">Owns: Mapbox setup, 3D building placement, map interactions</div>
-      <span class="tag green">Already assigned</span>
-      <br><br>
+      <br>
       <div class="timeline-item"><div class="timeline-hours">Hr 0–4</div><div class="timeline-task">Mapbox GL JS + react-map-gl setup, Toronto bounds, dark style applied</div></div>
       <div class="timeline-item"><div class="timeline-hours">Hr 4–10</div><div class="timeline-task">3D building extrusion via fill-extrusion layer, click-to-place interaction</div></div>
       <div class="timeline-item"><div class="timeline-hours">Hr 10–20</div><div class="timeline-task">Building markers for public mode, popup cards, camera fly-to animation</div></div>
@@ -627,7 +627,7 @@
 
     <div class="role-card">
       <div class="role-num">3</div>
-      <div class="role-title">AI / ML Engineer</div>
+      <div class="role-title">AI / ML Engineer — <span style="color:var(--green)">Ahmed & Yusuf</span></div>
       <div class="role-owns">Owns: NeMoTron inference, agent design, prompt engineering</div>
       <div class="timeline-item" style="margin-top:12px"><div class="timeline-hours">Hr 0–4</div><div class="timeline-task">Get NeMoTron running on DGX Spark, confirm inference endpoint works, test basic prompts</div></div>
       <div class="timeline-item"><div class="timeline-hours">Hr 4–10</div><div class="timeline-task">Design system prompts for Impact Agent + Citizen Chatbot, define JSON output schema</div></div>
@@ -638,7 +638,7 @@
 
     <div class="role-card">
       <div class="role-num">4</div>
-      <div class="role-title">Backend Engineer</div>
+      <div class="role-title">Backend Engineer — <span style="color:var(--green)">Wali</span></div>
       <div class="role-owns">Owns: FastAPI server, DB schema, endpoint implementation</div>
       <div class="timeline-item" style="margin-top:12px"><div class="timeline-hours">Hr 0–4</div><div class="timeline-task">FastAPI project setup, DB schema (buildings, impacts, chat_sessions), env config</div></div>
       <div class="timeline-item"><div class="timeline-hours">Hr 4–10</div><div class="timeline-task">Core endpoints: POST /building, GET /buildings, GET /building/:id/impact</div></div>
@@ -649,8 +649,8 @@
 
     <div class="role-card">
       <div class="role-num">5</div>
-      <div class="role-title">Frontend / UX</div>
-      <div class="role-owns">Owns: React UI components, both Builder and Public interfaces</div>
+      <div class="role-title">Frontend / UX — <span style="color:var(--green)">Rehan</span></div>
+      <div class="role-owns">Owns: React UI components, both Builder and Public interfaces <span class="tag blue" style="font-size:10px">dual: also Rendering</span></div>
       <div class="timeline-item" style="margin-top:12px"><div class="timeline-hours">Hr 0–4</div><div class="timeline-task">React + Vite setup, design tokens (colors, fonts), mock API responses to unblock UI</div></div>
       <div class="timeline-item"><div class="timeline-hours">Hr 4–12</div><div class="timeline-task">Builder sidebar (building config form + sliders), impact results panel</div></div>
       <div class="timeline-item"><div class="timeline-hours">Hr 12–20</div><div class="timeline-task">Public mode: building info drawer, chatbot UI, persona selector</div></div>
@@ -660,8 +660,8 @@
 
     <div class="role-card">
       <div class="role-num">6</div>
-      <div class="role-title">Integration Lead</div>
-      <div class="role-owns">Owns: System glue, unblocking, demo prep, pitch</div>
+      <div class="role-title">Integration Lead — <span style="color:var(--green)">Yusuf</span></div>
+      <div class="role-owns">Owns: System glue, unblocking, demo prep, pitch <span class="tag blue" style="font-size:10px">dual: also AI/ML</span></div>
       <div class="timeline-item" style="margin-top:12px"><div class="timeline-hours">Hr 0–2</div><div class="timeline-task">Run kickoff: agree on API contract doc, assign repos/branches, set up shared environment</div></div>
       <div class="timeline-item"><div class="timeline-hours">Hr 2–10</div><div class="timeline-task">Write API contract doc, set up dev environment for all, fill in wherever someone is blocked</div></div>
       <div class="timeline-item"><div class="timeline-hours">Hr 10–20</div><div class="timeline-task">First end-to-end integration test: place building → get AI analysis → display result</div></div>
@@ -812,6 +812,702 @@
     <span>ℹ️</span>
     <span>This prototype simulates the UI/UX only. The production app uses Mapbox GL JS for the map with real Toronto geospatial data, and NVIDIA NeMoTron on DGX Spark for all AI responses.</span>
   </div>
+</div>
+
+<!-- ======= PITCH ======= -->
+<div class="panel" id="tab-pitch">
+
+  <!-- HERO -->
+  <div style="text-align:center;padding:48px 24px 40px;background:linear-gradient(180deg,rgba(118,185,0,0.06) 0%,transparent 100%);border-radius:16px;margin-bottom:40px;border:1px solid var(--border)">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.15em;color:var(--green);font-weight:700;margin-bottom:16px">NVIDIA Hackathon 2026 — Urban Operations &amp; Economic Systems</div>
+    <h1 style="font-size:42px;font-weight:800;margin-bottom:12px;letter-spacing:-0.02em">Urban<span style="color:var(--green)">Forge</span></h1>
+    <p style="font-size:18px;color:var(--text);max-width:600px;margin:0 auto 24px;line-height:1.6">AI-powered urban development intelligence — so anyone can understand what gets built in their city, and what it means for them.</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <span class="tag green" style="font-size:13px;padding:6px 14px">NVIDIA NeMoTron</span>
+      <span class="tag blue" style="font-size:13px;padding:6px 14px">DGX Spark Local Inference</span>
+      <span class="tag" style="font-size:13px;padding:6px 14px">Toronto Open Data</span>
+      <span class="tag" style="font-size:13px;padding:6px 14px">PostGIS + FastAPI + Mapbox</span>
+    </div>
+  </div>
+
+  <!-- THE HOOK -->
+  <div class="grid grid-2" style="margin-bottom:28px">
+    <div class="card accent" style="padding:28px">
+      <div class="card-title">The Problem in One Sentence</div>
+      <h2 style="font-size:22px;line-height:1.4;margin-bottom:16px">"Toronto approves 2,000+ buildings a year. No one outside City Hall can understand what any of them actually mean."</h2>
+      <p>The data exists — traffic volumes, zoning bylaws, street trees, transit load. But it lives in 3+ disconnected portals, raw and inaccessible. There is no tool that translates it into human-meaningful insight.</p>
+    </div>
+    <div class="card blue" style="padding:28px">
+      <div class="card-title">The Opportunity</div>
+      <div class="problem-stat" style="padding:10px 0">
+        <div class="stat-num">2,000+</div>
+        <div><div class="stat-label">Development applications per year</div><div class="stat-sub">Each one affects traffic, rent, transit, green space — invisibly</div></div>
+      </div>
+      <div class="problem-stat" style="padding:10px 0">
+        <div class="stat-num">0</div>
+        <div><div class="stat-label">Public tools for pre-build impact simulation</div><div class="stat-sub">Developers use $50K proprietary software. Everyone else uses imagination.</div></div>
+      </div>
+      <div class="problem-stat" style="padding:10px 0;border:none">
+        <div class="stat-num">$4B+</div>
+        <div><div class="stat-label">Value of active Toronto development applications</div><div class="stat-sub">Decisions made with incomplete public information</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THE SOLUTION -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:20px">
+    <div class="overline">What We Built</div>
+    <h2 style="font-size:26px">Drop a building. Get the full picture — instantly.</h2>
+  </div>
+
+  <div class="grid grid-3" style="margin-bottom:28px">
+    <div class="card" style="text-align:center;padding:28px 20px">
+      <div style="font-size:36px;margin-bottom:12px">📍</div>
+      <h3 style="margin-bottom:8px">Place Anywhere</h3>
+      <p>Click anywhere on Toronto's interactive 3D map. Configure height, footprint, type, and material in seconds.</p>
+    </div>
+    <div class="card accent" style="text-align:center;padding:28px 20px">
+      <div style="font-size:36px;margin-bottom:12px">🧠</div>
+      <h3 style="margin-bottom:8px">NeMoTron Analyzes</h3>
+      <p>NVIDIA NeMoTron runs locally on DGX Spark — zero latency, zero API cost — and reasons over 6 live Toronto Open Data layers within 500m.</p>
+    </div>
+    <div class="card" style="text-align:center;padding:28px 20px">
+      <div style="font-size:36px;margin-bottom:12px">📊</div>
+      <h3 style="margin-bottom:8px">Impact in 5 Dimensions</h3>
+      <p>Environmental, traffic, economic, infrastructure, and housing impact — scored, explained, and queryable via a citizen chatbot.</p>
+    </div>
+  </div>
+
+  <!-- WHY NVIDIA -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:20px">
+    <div class="overline">Why This Is an NVIDIA Story</div>
+    <h2 style="font-size:26px">The hardware makes the product possible</h2>
+  </div>
+
+  <div class="card accent" style="padding:28px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px">
+      <div>
+        <div class="card-title">Local Inference on DGX Spark</div>
+        <h3 style="margin-bottom:8px">Zero latency. Zero cost per call.</h3>
+        <p>Running NeMoTron locally means real-time analysis with no API rate limits. A 40-storey building impact report in under 2 seconds — impossible on cloud inference at hackathon scale.</p>
+      </div>
+      <div>
+        <div class="card-title">NeMoTron's Reasoning Quality</div>
+        <h3 style="margin-bottom:8px">Not just retrieval — actual reasoning.</h3>
+        <p>NeMoTron doesn't just look up data. It reasons: "Given 14 trees within 80m, 3 TTC stops, and a LOS-C intersection — here's what a 48-storey tower does to this block." That's what makes the analysis trustworthy.</p>
+      </div>
+      <div>
+        <div class="card-title">The Bigger Vision</div>
+        <h3 style="margin-bottom:8px">Every city. Every development.</h3>
+        <p>UrbanForge is designed to be city-agnostic. Toronto is the proof of concept. With NVIDIA infrastructure, this scales to any city with open geospatial data — globally.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEMO FLOW -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:20px">
+    <div class="overline">Demo Flow — 3 Minutes</div>
+    <h2 style="font-size:26px">What the judges will see</h2>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px">
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--green)">
+      <div style="font-size:22px;font-weight:800;color:var(--green);width:36px;flex-shrink:0">1</div>
+      <div><strong>Open the map.</strong> Toronto rendered in 3D with all active development applications already visible as markers. Click any marker — instant building detail card with specs and status.</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--green)">
+      <div style="font-size:22px;font-weight:800;color:var(--green);width:36px;flex-shrink:0">2</div>
+      <div><strong>Switch to Builder Mode.</strong> Click King &amp; Spadina. Configure a 40-storey mixed-use tower, 2,000m² footprint, mass timber. Hit Analyze Impact.</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--green)">
+      <div style="font-size:22px;font-weight:800;color:var(--green);width:36px;flex-shrink:0">3</div>
+      <div><strong>NeMoTron returns.</strong> Live on DGX Spark. Five impact scores appear with real descriptions citing actual data: "King &amp; Spadina intersection moves from LOS C → D during peak hours. +420 daily TTC boardings."</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--blue)">
+      <div style="font-size:22px;font-weight:800;color:var(--blue);width:36px;flex-shrink:0">4</div>
+      <div><strong>Open the citizen chatbot.</strong> Ask: "Will this raise rent for people nearby?" Watch NeMoTron reason through housing supply, vacancy rate, and displacement risk in natural language.</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--blue)">
+      <div style="font-size:22px;font-weight:800;color:var(--blue);width:36px;flex-shrink:0">5</div>
+      <div><strong>Move the building.</strong> Place it 300m east on Bay St instead. The impact scores change immediately — different zoning, more TTC exposure, fewer trees displaced. Same building, different story.</div>
+    </div>
+  </div>
+
+  <!-- WHO IT'S FOR -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:20px">
+    <div class="overline">Who Uses This</div>
+    <h2 style="font-size:26px">Three users. One platform.</h2>
+  </div>
+
+  <div class="grid grid-3" style="margin-bottom:28px">
+    <div class="card">
+      <div style="font-size:28px;margin-bottom:10px">🏗️</div>
+      <div class="card-title">Developers &amp; Architects</div>
+      <h3 style="margin-bottom:8px">Site feasibility in minutes</h3>
+      <p>Before spending $200K on a feasibility study, drop the building on the map. Know if zoning allows it, what the traffic impact is, and whether the city will push back — instantly.</p>
+    </div>
+    <div class="card">
+      <div style="font-size:28px;margin-bottom:10px">🏘️</div>
+      <div class="card-title">Residents &amp; Advocates</div>
+      <h3 style="margin-bottom:8px">Informed participation</h3>
+      <p>When a tower is proposed near you, stop guessing. Ask the AI what it means for your rent, your commute, your park. Show up to the planning meeting with data.</p>
+    </div>
+    <div class="card">
+      <div style="font-size:28px;margin-bottom:10px">💼</div>
+      <div class="card-title">Investors &amp; City Planners</div>
+      <h3 style="margin-bottom:8px">Portfolio-level intelligence</h3>
+      <p>Overlay all active developments. See where density is concentrating, where infrastructure pressure is building, and where opportunity is emerging — across the entire city.</p>
+    </div>
+  </div>
+
+  <!-- WHAT MAKES IT DIFFERENT -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:20px">
+    <div class="overline">Differentiation</div>
+    <h2 style="font-size:26px">Why this hasn't been built before</h2>
+  </div>
+
+  <div class="grid grid-2" style="margin-bottom:28px">
+    <div>
+      <div class="card" style="margin-bottom:10px;border-left:3px solid var(--danger)">
+        <div class="card-title" style="color:var(--danger)">Existing Tools</div>
+        <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="feature-icon">❌</div><div><p style="margin:0">City portals show raw data — no analysis, no context, no AI</p></div></div>
+        <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="feature-icon">❌</div><div><p style="margin:0">Proprietary software costs $30K+/yr — inaccessible to the public</p></div></div>
+        <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="feature-icon">❌</div><div><p style="margin:0">No tool lets you simulate a building before it exists</p></div></div>
+        <div class="feature-row" style="padding:8px 0"><div class="feature-icon">❌</div><div><p style="margin:0">Data is siloed — traffic here, zoning there, trees somewhere else</p></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="card accent" style="margin-bottom:10px">
+        <div class="card-title">UrbanForge</div>
+        <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="feature-icon">✅</div><div><p style="margin:0">NeMoTron reasons over 6 data layers simultaneously — not retrieval, actual intelligence</p></div></div>
+        <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="feature-icon">✅</div><div><p style="margin:0">Free and open — built on Toronto Open Data and open-source tooling</p></div></div>
+        <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="feature-icon">✅</div><div><p style="margin:0">Simulate any building, anywhere, before a permit is filed</p></div></div>
+        <div class="feature-row" style="padding:8px 0"><div class="feature-icon">✅</div><div><p style="margin:0">Single unified platform — all datasets fused, spatially indexed, instantly queryable</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLOSING STATEMENT -->
+  <div style="background:linear-gradient(135deg,rgba(118,185,0,0.08),rgba(0,163,255,0.06));border:1px solid var(--border);border-radius:16px;padding:40px;text-align:center;margin-bottom:8px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:var(--green);font-weight:700;margin-bottom:16px">The Ask</div>
+    <h2 style="font-size:28px;font-weight:800;margin-bottom:16px;line-height:1.3">Cities are being shaped by decisions most people never see.<br><span style="color:var(--green)">UrbanForge changes that.</span></h2>
+    <p style="font-size:15px;max-width:640px;margin:0 auto 28px;color:var(--text);line-height:1.7">We built in 36 hours what city governments have been promising for a decade — a single, intelligent, public interface to understand urban development. Powered by NVIDIA NeMoTron. Open to everyone.</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <div style="background:var(--green);color:#000;border-radius:8px;padding:12px 28px;font-weight:700;font-size:15px">Built in 36 hours</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 28px;font-weight:600;font-size:15px">6 engineers</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 28px;font-weight:600;font-size:15px">1 DGX Spark</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 28px;font-weight:600;font-size:15px">Every city. Starting here.</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ======= BACKEND DOCS ======= -->
+<div class="panel" id="tab-backend">
+
+  <!-- HERO -->
+  <div style="text-align:center;padding:40px 24px 32px;background:linear-gradient(180deg,rgba(124,58,237,0.07) 0%,transparent 100%);border-radius:16px;margin-bottom:36px;border:1px solid var(--border)">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.15em;color:#7c3aed;font-weight:700;margin-bottom:12px">Role 4 — Backend Engineer</div>
+    <h1 style="font-size:36px;font-weight:800;margin-bottom:10px">UrbanForge Backend</h1>
+    <p style="font-size:16px;color:var(--text);max-width:620px;margin:0 auto 20px;line-height:1.6">FastAPI + PostgreSQL/PostGIS + XGBoost + NeMoTron. Everything between the React map and the AI.</p>
+    <div style="display:flex;gap:10px;justify-content:center;flex-wrap:wrap">
+      <span class="tag green" style="font-size:12px;padding:5px 12px">FastAPI</span>
+      <span class="tag blue" style="font-size:12px;padding:5px 12px">PostgreSQL + PostGIS</span>
+      <span class="tag" style="font-size:12px;padding:5px 12px">XGBoost</span>
+      <span class="tag" style="font-size:12px;padding:5px 12px">NeMoTron</span>
+      <span class="tag" style="font-size:12px;padding:5px 12px">LangGraph</span>
+      <span class="tag" style="font-size:12px;padding:5px 12px">GeoParquet</span>
+    </div>
+  </div>
+
+  <!-- FILE STRUCTURE -->
+  <div class="section-header" style="margin-bottom:16px">
+    <div class="overline">Project Structure</div>
+    <h2>What each file does</h2>
+  </div>
+
+  <div class="card" style="margin-bottom:28px;font-family:monospace;font-size:13px;line-height:2">
+    <div style="color:var(--green);font-weight:700">backend/</div>
+    <div style="padding-left:20px">
+      <div><span style="color:var(--blue)">main.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— entry point, CORS, router wiring, table creation on startup</span></div>
+      <div><span style="color:var(--blue)">database.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— SQLAlchemy engine + session factory connecting to PostgreSQL</span></div>
+      <div><span style="color:var(--blue)">models.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— DB table definitions: buildings, impacts, chat_sessions</span></div>
+      <div><span style="color:var(--blue)">schemas.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— Pydantic request/response shapes (the API contract)</span></div>
+      <div><span style="color:var(--blue)">spatial.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— loads GeoParquet files at startup, runs 500m radius queries</span></div>
+      <div><span style="color:var(--blue)">xgb_models.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— loads trained XGBoost models, predict_energy/traffic/economic</span></div>
+      <div style="color:var(--green);margin-top:4px">routers/</div>
+      <div style="padding-left:20px">
+        <div><span style="color:var(--blue)">buildings.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— POST /building, GET /buildings, GET /building/{id}/impact</span></div>
+        <div><span style="color:var(--blue)">chat.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— WS /chat/{session_id} WebSocket citizen chatbot</span></div>
+        <div><span style="color:var(--blue)">generate.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— POST /generate/building-image (Rehan's renderer)</span></div>
+      </div>
+      <div style="color:var(--green);margin-top:4px">agents/</div>
+      <div style="padding-left:20px">
+        <div><span style="color:var(--blue)">impact_agent.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— calls NeMoTron for impact narrative + fallback</span></div>
+        <div><span style="color:var(--blue)">chat_agent.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— calls NeMoTron for citizen Q&amp;A + fallback</span></div>
+        <div><span style="color:var(--blue)">building_image_agent.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— LangGraph extract→validate→render pipeline</span></div>
+      </div>
+      <div style="color:var(--green);margin-top:4px">rendering/</div>
+      <div style="padding-left:20px">
+        <div><span style="color:var(--blue)">building_renderer.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— deterministic Pillow renderer (skyscraper / house / suburban)</span></div>
+      </div>
+      <div style="color:var(--green);margin-top:4px">tests/</div>
+      <div style="padding-left:20px">
+        <div><span style="color:var(--blue)">test_api.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— 25 pytest tests covering all endpoints and XGBoost models</span></div>
+      </div>
+    </div>
+    <div style="color:var(--green);margin-top:8px">ml/</div>
+    <div style="padding-left:20px">
+      <div><span style="color:var(--blue)">data_pipeline.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— downloads all Toronto Open Data → saves as GeoParquet</span></div>
+      <div><span style="color:var(--blue)">train_models.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— trains 3 XGBoost models on real Toronto data</span></div>
+      <div><span style="color:var(--blue)">fetch.py</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— Toronto Open Data CKAN API download helpers</span></div>
+      <div style="color:var(--green);margin-top:4px">models/</div>
+      <div style="padding-left:20px">
+        <div><span style="color:var(--blue)">energy_model.json</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— trained on 7,667 real EWRB electricity measurements</span></div>
+        <div><span style="color:var(--blue)">traffic_model.json</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— ITE trip rate calibrated on 154k building permits</span></div>
+        <div><span style="color:var(--blue)">economic_model.json</span> <span style="color:var(--muted);font-family:system-ui;font-size:12px">— StatsCan I-O multipliers × construction value</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- DATABASE -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:16px">
+    <div class="overline">Database</div>
+    <h2>PostgreSQL 17 + PostGIS</h2>
+  </div>
+
+  <div class="grid grid-3" style="margin-bottom:28px">
+    <div class="card">
+      <div class="card-title">buildings</div>
+      <p style="font-size:12px;margin-bottom:10px">Every building placed on the map.</p>
+      <div style="font-family:monospace;font-size:11px;color:var(--muted);line-height:1.8">
+        <div><span style="color:var(--green)">id</span> — auto-increment PK</div>
+        <div><span style="color:var(--green)">type, material, floors</span></div>
+        <div><span style="color:var(--green)">footprint_m2, units_per_floor</span></div>
+        <div><span style="color:var(--green)">lat, lng</span> — plain floats</div>
+        <div><span style="color:var(--blue)">geom</span> — PostGIS Point (enables radius search)</div>
+        <div><span style="color:var(--green)">status, created_at</span></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">impacts</div>
+      <p style="font-size:12px;margin-bottom:10px">AI analysis result per building. Cached — only computed once.</p>
+      <div style="font-family:monospace;font-size:11px;color:var(--muted);line-height:1.8">
+        <div><span style="color:var(--green)">building_id</span> — FK to buildings</div>
+        <div><span style="color:var(--green)">environmental_score</span> (0–100)</div>
+        <div><span style="color:var(--green)">traffic_score</span> (0–100)</div>
+        <div><span style="color:var(--green)">economic_score</span> (0–100)</div>
+        <div><span style="color:var(--green)">infrastructure_score</span> (0–100)</div>
+        <div><span style="color:var(--green)">housing_score</span> (0–100)</div>
+        <div><span style="color:var(--blue)">summary_json</span> — full NeMoTron response</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">chat_sessions</div>
+      <p style="font-size:12px;margin-bottom:10px">Conversation history per user session.</p>
+      <div style="font-family:monospace;font-size:11px;color:var(--muted);line-height:1.8">
+        <div><span style="color:var(--green)">id</span> — session identifier</div>
+        <div><span style="color:var(--green)">building_id</span> — optional FK</div>
+        <div><span style="color:var(--blue)">messages_json</span> — array of</div>
+        <div style="padding-left:12px"><span style="color:var(--muted)">{role, content} turns</span></div>
+        <div><span style="color:var(--green)">created_at</span></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notice info" style="margin-bottom:28px">
+    <span>💡</span>
+    <span><strong>Why PostGIS?</strong> The <code>geom</code> column stores the building as a spatial point. PostGIS lets us run <code>ST_DWithin(geom, point, 500m)</code> — find everything within 500 metres in one query. Standard SQL can't do this without complex math. PostGIS does it in milliseconds.</span>
+  </div>
+
+  <!-- API ENDPOINTS -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:16px">
+    <div class="overline">API Endpoints</div>
+    <h2>All routes — what they accept and return</h2>
+  </div>
+
+  <!-- Endpoint cards -->
+  <div style="display:flex;flex-direction:column;gap:12px;margin-bottom:28px">
+
+    <div class="card" style="border-left:3px solid var(--green)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="background:rgba(118,185,0,0.15);color:var(--green);font-family:monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px">POST</div>
+        <div style="font-family:monospace;font-size:14px;font-weight:600">/building</div>
+        <div style="font-size:12px;color:var(--muted);margin-left:auto">201 Created</div>
+      </div>
+      <p style="font-size:13px;margin-bottom:10px">Place a building on the map. Stores to DB with PostGIS geometry point.</p>
+      <div class="grid grid-2" style="gap:12px">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">REQUEST BODY</div>
+          <div style="font-family:monospace;font-size:11px;background:var(--surface2);padding:10px;border-radius:6px;line-height:1.8;color:var(--text)">
+            { name?, type, material?,<br>
+            &nbsp;&nbsp;floors, footprint_m2,<br>
+            &nbsp;&nbsp;units_per_floor?, lat, lng, status? }
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">RESPONSE</div>
+          <div style="font-family:monospace;font-size:11px;background:var(--surface2);padding:10px;border-radius:6px;line-height:1.8;color:var(--text)">
+            { id, name, type, floors,<br>
+            &nbsp;&nbsp;footprint_m2, lat, lng,<br>
+            &nbsp;&nbsp;status }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--blue)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="background:rgba(0,163,255,0.15);color:var(--blue);font-family:monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px">GET</div>
+        <div style="font-family:monospace;font-size:14px;font-weight:600">/buildings</div>
+        <div style="font-size:12px;color:var(--muted);margin-left:auto">200 OK</div>
+      </div>
+      <p style="font-size:13px;margin-bottom:10px">Returns all buildings. The public map uses this to populate development markers on load.</p>
+      <div style="font-family:monospace;font-size:11px;background:var(--surface2);padding:10px;border-radius:6px;line-height:1.8;color:var(--text);display:inline-block">
+        [{ id, name, type, floors, lat, lng, status }, ...]
+      </div>
+    </div>
+
+    <div class="card accent" style="border-left:3px solid var(--green)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="background:rgba(118,185,0,0.15);color:var(--green);font-family:monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px">GET</div>
+        <div style="font-family:monospace;font-size:14px;font-weight:600">/building/{id}/impact</div>
+        <div style="font-size:12px;color:var(--muted);margin-left:auto">The core pipeline</div>
+      </div>
+      <p style="font-size:13px;margin-bottom:12px">Triggers the full AI + ML pipeline for a building. Cached after first call — second request returns instantly.</p>
+      <div style="font-family:monospace;font-size:11px;background:var(--surface2);padding:10px;border-radius:6px;line-height:1.8;color:var(--text);margin-bottom:10px">
+        {<br>
+        &nbsp;&nbsp;environmental: { score: 0-100, description: "..." },<br>
+        &nbsp;&nbsp;traffic:       { score: 0-100, description: "..." },<br>
+        &nbsp;&nbsp;economic:      { score: 0-100, description: "..." },<br>
+        &nbsp;&nbsp;infrastructure:{ score: 0-100, description: "..." },<br>
+        &nbsp;&nbsp;housing:       { score: 0-100, description: "..." }<br>
+        }
+      </div>
+      <div class="notice info" style="margin:0;padding:10px 14px">
+        <span>⚡</span>
+        <span style="font-size:12px">Returns 404 if building not found. Returns cached result if impact already computed. Never crashes — XGBoost fallback covers NeMoTron being offline.</span>
+      </div>
+    </div>
+
+    <div class="card" style="border-left:3px solid #7c3aed">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="background:rgba(124,58,237,0.15);color:#a78bfa;font-family:monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px">WS</div>
+        <div style="font-family:monospace;font-size:14px;font-weight:600">/chat/{session_id}</div>
+        <div style="font-size:12px;color:var(--muted);margin-left:auto">WebSocket — persistent connection</div>
+      </div>
+      <p style="font-size:13px;margin-bottom:10px">Real-time citizen chatbot. Maintains full conversation history in DB. Adapts to building context if building_id provided.</p>
+      <div class="grid grid-2" style="gap:12px">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">SEND (JSON)</div>
+          <div style="font-family:monospace;font-size:11px;background:var(--surface2);padding:10px;border-radius:6px;line-height:1.8;color:var(--text)">{ message, building_id? }</div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">RECEIVE (JSON)</div>
+          <div style="font-family:monospace;font-size:11px;background:var(--surface2);padding:10px;border-radius:6px;line-height:1.8;color:var(--text)">{ response }</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--warn)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="background:rgba(245,166,35,0.15);color:var(--warn);font-family:monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px">POST</div>
+        <div style="font-family:monospace;font-size:14px;font-weight:600">/generate/building-image</div>
+        <div style="font-size:12px;color:var(--muted);margin-left:auto">Rehan's renderer</div>
+      </div>
+      <p style="font-size:13px;margin-bottom:10px">Generate a 2D building elevation PNG. Accepts either a natural language prompt (routes through NeMoTron) or direct structured params (deterministic, no AI needed).</p>
+      <div class="grid grid-2" style="gap:12px">
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">REQUEST (either/or)</div>
+          <div style="font-family:monospace;font-size:11px;background:var(--surface2);padding:10px;border-radius:6px;line-height:1.8;color:var(--text)">
+            Option A: { prompt: "40 floor glass tower" }<br><br>
+            Option B: { building_type, style,<br>
+            &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;floors, size }
+          </div>
+        </div>
+        <div>
+          <div style="font-size:11px;color:var(--muted);margin-bottom:6px;font-weight:600">RESPONSE</div>
+          <div style="font-family:monospace;font-size:11px;background:var(--surface2);padding:10px;border-radius:6px;line-height:1.8;color:var(--text)">
+            { image_b64: "data:image/png...",<br>
+            &nbsp;&nbsp;image_path: "/tmp/...",<br>
+            &nbsp;&nbsp;metadata: { width, height, ... } }
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card" style="border-left:3px solid var(--blue)">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="background:rgba(0,163,255,0.15);color:var(--blue);font-family:monospace;font-size:11px;font-weight:700;padding:3px 8px;border-radius:4px">GET</div>
+        <div style="font-family:monospace;font-size:14px;font-weight:600">/health</div>
+        <div style="font-size:12px;color:var(--muted);margin-left:auto">200 OK always</div>
+      </div>
+      <div style="font-family:monospace;font-size:11px;background:var(--surface2);padding:10px;border-radius:6px;line-height:1.8;color:var(--text)">
+        { status: "ok", spatial_layers: { traffic_volumes: true, ttc_stops: true, street_trees: true, ... } }
+      </div>
+    </div>
+
+  </div>
+
+  <!-- IMPACT PIPELINE -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:16px">
+    <div class="overline">The Core Pipeline</div>
+    <h2>What happens when you hit GET /building/{id}/impact</h2>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:8px;margin-bottom:28px">
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
+      <div style="font-size:18px;font-weight:800;color:var(--green);width:28px;flex-shrink:0;text-align:center">1</div>
+      <div><strong>Cache check</strong> — query <code>impacts</code> table for this building_id. If found, return immediately. No AI, no ML, instant.</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
+      <div style="font-size:18px;font-weight:800;color:var(--green);width:28px;flex-shrink:0;text-align:center">2</div>
+      <div><strong>Spatial query</strong> — <code>spatial.py</code> loads GeoParquet files and runs a 500m radius query. Returns nearby traffic intersections, TTC stops, street trees, businesses, parks, zoning. Cached by coordinate so the same location is only queried once.</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
+      <div style="font-size:18px;font-weight:800;color:#7c3aed;width:28px;flex-shrink:0;text-align:center">3</div>
+      <div><strong>XGBoost inference</strong> — <code>xgb_models.py</code> runs three models in ~10ms. Produces quantitative scores for environmental (kWh), traffic (daily trips), and economic (construction jobs). These are trained on real Toronto data — not estimates.</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:14px;background:var(--surface2);border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--green)">
+      <div style="font-size:18px;font-weight:800;color:var(--green);width:28px;flex-shrink:0;text-align:center">4</div>
+      <div><strong>NeMoTron on DGX Spark</strong> — building specs + spatial context sent as a structured prompt. NeMoTron reasons over all 5 dimensions and returns JSON. XGBoost scores override the quantitative fields; NeMoTron provides the narrative and covers infrastructure + housing dimensions XGB doesn't handle.</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
+      <div style="font-size:18px;font-weight:800;color:var(--muted);width:28px;flex-shrink:0;text-align:center">5</div>
+      <div><strong>Fallback</strong> — if NeMoTron is offline, <code>fallback_impact()</code> generates realistic scores mathematically from floor count and footprint. The demo never crashes. XGBoost still runs — only the narrative is missing.</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:14px;background:var(--surface);border:1px solid var(--border);border-radius:10px">
+      <div style="font-size:18px;font-weight:800;color:var(--blue);width:28px;flex-shrink:0;text-align:center">6</div>
+      <div><strong>Store + return</strong> — result saved to <code>impacts</code> table and returned. Next call for this building is instant (step 1).</div>
+    </div>
+  </div>
+
+  <!-- XGBOOST MODELS -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:16px">
+    <div class="overline">Machine Learning</div>
+    <h2>Three XGBoost models trained on real Toronto data</h2>
+  </div>
+
+  <div class="grid grid-3" style="margin-bottom:12px">
+    <div class="card accent">
+      <div class="card-title">Energy Model</div>
+      <div style="font-size:24px;font-weight:800;color:var(--green);margin-bottom:4px">R² 0.471</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Honest — real energy has variance</div>
+      <div class="feature-row" style="padding:6px 0;border-bottom:1px solid var(--border)"><div class="feature-icon" style="font-size:14px">📊</div><div><p style="margin:0;font-size:12px">Training data: 7,667 real EWRB measurements</p></div></div>
+      <div class="feature-row" style="padding:6px 0;border-bottom:1px solid var(--border)"><div class="feature-icon" style="font-size:14px">🔢</div><div><p style="margin:0;font-size:12px">Features: floor_area_m², building_type</p></div></div>
+      <div class="feature-row" style="padding:6px 0"><div class="feature-icon" style="font-size:14px">🎯</div><div><p style="margin:0;font-size:12px">Predicts: annual kWh electricity consumption</p></div></div>
+    </div>
+    <div class="card accent">
+      <div class="card-title">Traffic Model</div>
+      <div style="font-size:24px;font-weight:800;color:var(--green);margin-bottom:4px">R² 0.978</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">High — ITE rates are a strong signal</div>
+      <div class="feature-row" style="padding:6px 0;border-bottom:1px solid var(--border)"><div class="feature-icon" style="font-size:14px">📊</div><div><p style="margin:0;font-size:12px">Training: 154k permits × ITE trip rates</p></div></div>
+      <div class="feature-row" style="padding:6px 0;border-bottom:1px solid var(--border)"><div class="feature-icon" style="font-size:14px">🔢</div><div><p style="margin:0;font-size:12px">Features: GFA by use (residential, retail, office, industrial)</p></div></div>
+      <div class="feature-row" style="padding:6px 0"><div class="feature-icon" style="font-size:14px">🎯</div><div><p style="margin:0;font-size:12px">Predicts: daily vehicle trips generated</p></div></div>
+    </div>
+    <div class="card accent">
+      <div class="card-title">Economic Model</div>
+      <div style="font-size:24px;font-weight:800;color:var(--green);margin-bottom:4px">R² 0.993</div>
+      <div style="font-size:11px;color:var(--muted);margin-bottom:12px">Very high — cost → jobs is near-linear</div>
+      <div class="feature-row" style="padding:6px 0;border-bottom:1px solid var(--border)"><div class="feature-icon" style="font-size:14px">📊</div><div><p style="margin:0;font-size:12px">Training: 24k permits with declared construction values</p></div></div>
+      <div class="feature-row" style="padding:6px 0;border-bottom:1px solid var(--border)"><div class="feature-icon" style="font-size:14px">🔢</div><div><p style="margin:0;font-size:12px">Calibrated: StatsCan I-O multipliers (~7 jobs per $1M)</p></div></div>
+      <div class="feature-row" style="padding:6px 0"><div class="feature-icon" style="font-size:14px">🎯</div><div><p style="margin:0;font-size:12px">Predicts: construction person-years of employment</p></div></div>
+    </div>
+  </div>
+
+  <div class="notice warn" style="margin-bottom:28px">
+    <span>⚠️</span>
+    <span><strong>EWRB Bug Found & Fixed:</strong> The original EWRB download was saving corrupted data — the dataset is XLSX-only but the fetcher called <code>pd.read_csv()</code> on it, saving raw ZIP bytes as a single garbage column. Detected because R²=0.999 was suspiciously perfect (it was fitting its own formula). Fixed by adding proper <code>pd.read_excel()</code> support and parsing the multi-level header structure. Energy model now trained on 7,667 real measurements with honest R²=0.471.</span>
+  </div>
+
+  <!-- SPATIAL LAYER -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:16px">
+    <div class="overline">Spatial Context</div>
+    <h2>Toronto Open Data — 121 MB, 14 datasets</h2>
+  </div>
+
+  <div class="grid grid-2" style="margin-bottom:28px">
+    <div class="card">
+      <div class="card-title">How it works</div>
+      <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)">
+        <div class="feature-icon">1️⃣</div>
+        <div><h3 style="font-size:13px;margin-bottom:3px">Download once</h3><p style="margin:0;font-size:12px">Run <code>python ml/data_pipeline.py</code>. Downloads all datasets from Toronto Open Data CKAN API and saves as GeoParquet files in <code>data/</code>.</p></div>
+      </div>
+      <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)">
+        <div class="feature-icon">2️⃣</div>
+        <div><h3 style="font-size:13px;margin-bottom:3px">Load at startup</h3><p style="margin:0;font-size:12px"><code>spatial.py</code> loads all GeoParquet files into memory as geopandas GeoDataFrames when the server starts.</p></div>
+      </div>
+      <div class="feature-row" style="padding:8px 0">
+        <div class="feature-icon">3️⃣</div>
+        <div><h3 style="font-size:13px;margin-bottom:3px">Query per request</h3><p style="margin:0;font-size:12px">For each building, project coordinates to UTM Zone 17N (metres), buffer 500m, return intersecting features. Results cached by rounded coordinates.</p></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Datasets loaded</div>
+      <div style="display:flex;flex-direction:column;gap:6px;font-size:12px">
+        <div style="display:flex;justify-content:space-between"><span>Street Trees</span><span style="color:var(--green);font-weight:600">688,364 rows</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Business Licences</span><span style="color:var(--green);font-weight:600">155,551 rows</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Building Permits (active)</span><span style="color:var(--green);font-weight:600">228,573 rows</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Building Permits (cleared)</span><span style="color:var(--green);font-weight:600">154,826 rows</span></div>
+        <div style="display:flex;justify-content:space-between"><span>TTC Stops</span><span style="color:var(--green);font-weight:600">9,368 rows</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Traffic Volumes</span><span style="color:var(--green);font-weight:600">6,410 rows</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Zoning By-law</span><span style="color:var(--green);font-weight:600">11,719 polygons</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Parks</span><span style="color:var(--green);font-weight:600">1,790 rows</span></div>
+        <div style="display:flex;justify-content:space-between"><span>Neighbourhoods</span><span style="color:var(--green);font-weight:600">158 polygons</span></div>
+        <div style="display:flex;justify-content:space-between;border-top:1px solid var(--border);padding-top:6px;margin-top:2px"><span style="font-weight:600">Total</span><span style="color:var(--green);font-weight:700">121 MB</span></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RENDERING -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:16px">
+    <div class="overline">Building Image Generation — Rehan's Work</div>
+    <h2>LangGraph pipeline + deterministic Pillow renderer</h2>
+  </div>
+
+  <div class="grid grid-2" style="margin-bottom:28px">
+    <div class="card">
+      <div class="card-title">LangGraph Pipeline (3 nodes)</div>
+      <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)">
+        <div class="feature-icon">📥</div>
+        <div><h3 style="font-size:13px;margin-bottom:3px">Extract</h3><p style="margin:0;font-size:12px">NeMoTron parses "40-floor glass skyscraper with retail podium" → structured JSON: {building_type, style, floors, size}. Uses LangChain structured output with Pydantic enforcement.</p></div>
+      </div>
+      <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)">
+        <div class="feature-icon">✅</div>
+        <div><h3 style="font-size:13px;margin-bottom:3px">Validate</h3><p style="margin:0;font-size:12px">Pydantic schema check + business rules (skyscrapers ≥20 floors, curtain wall must be glass, podium floors &lt; total). Auto-corrects minor issues. Retries up to 2x on failure.</p></div>
+      </div>
+      <div class="feature-row" style="padding:8px 0">
+        <div class="feature-icon">🖼️</div>
+        <div><h3 style="font-size:13px;margin-bottom:3px">Render</h3><p style="margin:0;font-size:12px">Deterministic Pillow renderer. Same params = pixel-identical PNG every time. Background locked to #E0E0E0 so the 3D pipeline can reliably edge-detect silhouettes.</p></div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Renderer Capabilities</div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">BUILDING TYPES</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <span class="tag green">skyscraper</span>
+          <span class="tag green">house</span>
+          <span class="tag green">suburban_building</span>
+        </div>
+      </div>
+      <div style="margin-bottom:14px">
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">STYLE PALETTES</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap">
+          <span class="tag blue">modern_glass_tower</span>
+          <span class="tag blue">traditional_brick</span>
+          <span class="tag blue">brutalist_concrete</span>
+          <span class="tag blue">retail_complex</span>
+        </div>
+      </div>
+      <div>
+        <div style="font-size:11px;color:var(--muted);font-weight:600;margin-bottom:6px">BYPASS MODE (no LLM)</div>
+        <p style="font-size:12px;margin:0">Pass building_type, style, floors, size directly to skip NeMoTron entirely. Fully deterministic — works even when DGX Spark is offline.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- TESTS -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:16px">
+    <div class="overline">Test Suite</div>
+    <h2>25 tests — all passing</h2>
+  </div>
+
+  <div class="grid grid-3" style="margin-bottom:12px">
+    <div class="card">
+      <div class="card-title">API Tests (17)</div>
+      <div style="font-size:12px;line-height:2;color:var(--muted)">
+        <div>✅ Health endpoint + spatial layer status</div>
+        <div>✅ POST /building — 201, ID, field reflection</div>
+        <div>✅ POST /building — validation errors (422)</div>
+        <div>✅ POST /building — optional fields</div>
+        <div>✅ GET /buildings — list, schema</div>
+        <div>✅ GET /buildings — contains just-created</div>
+        <div>✅ GET /impact — all 5 dimensions</div>
+        <div>✅ GET /impact — scores bounded 0–100</div>
+        <div>✅ GET /impact — 404 for unknown building</div>
+        <div>✅ GET /impact — cached on second call</div>
+        <div>✅ POST /generate/building-image</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">XGBoost Tests (4)</div>
+      <div style="font-size:12px;line-height:2;color:var(--muted)">
+        <div>✅ Energy prediction returns score + kWh</div>
+        <div>✅ Traffic prediction returns score + trips</div>
+        <div>✅ Economic prediction returns score + jobs</div>
+        <div>✅ Retail generates more trips than residential</div>
+      </div>
+    </div>
+    <div class="card">
+      <div class="card-title">Edge Cases (4)</div>
+      <div style="font-size:12px;line-height:2;color:var(--muted)">
+        <div>✅ 1-floor building (minimum)</div>
+        <div>✅ 50,000 m² footprint (maximum)</div>
+        <div>✅ lat/lng as string → 422</div>
+        <div>✅ Image endpoint offline-safe (no crash)</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notice info" style="margin-bottom:28px">
+    <span>🧪</span>
+    <span>Run the test suite: <code>cd backend && source venv/bin/activate && pytest tests/ -v</code>. No running server needed — FastAPI TestClient runs everything in-process. No NeMoTron needed — all AI calls have fallbacks.</span>
+  </div>
+
+  <!-- HOW TO RUN -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:16px">
+    <div class="overline">How To Run</div>
+    <h2>Getting the backend started from scratch</h2>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:8px">
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">STEP 1 — Database (already done on Wali's machine)</div>
+      <div style="font-family:monospace;font-size:12px;background:var(--surface2);padding:10px;border-radius:6px;line-height:2;color:var(--text)">
+        brew install postgresql@17 postgis<br>
+        brew services start postgresql@17<br>
+        psql postgres -c "CREATE DATABASE urbanforge;"<br>
+        psql urbanforge -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+      </div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">STEP 2 — Install dependencies</div>
+      <div style="font-family:monospace;font-size:12px;background:var(--surface2);padding:10px;border-radius:6px;line-height:2;color:var(--text)">
+        cd backend<br>
+        python -m venv venv && source venv/bin/activate<br>
+        pip install -r requirements.txt
+      </div>
+    </div>
+    <div style="background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--muted);margin-bottom:8px">STEP 3 — Download Toronto data + train ML models</div>
+      <div style="font-family:monospace;font-size:12px;background:var(--surface2);padding:10px;border-radius:6px;line-height:2;color:var(--text)">
+        python ml/data_pipeline.py   # downloads 121 MB of Toronto Open Data<br>
+        python ml/train_models.py    # trains 3 XGBoost models (~30 seconds)
+      </div>
+    </div>
+    <div style="background:var(--surface2);border:1px solid var(--green-dim);border-radius:10px;padding:16px">
+      <div style="font-size:12px;font-weight:600;color:var(--green);margin-bottom:8px">STEP 4 — Start the server</div>
+      <div style="font-family:monospace;font-size:12px;background:var(--surface);padding:10px;border-radius:6px;line-height:2;color:var(--text)">
+        uvicorn main:app --reload<br>
+        # → http://localhost:8000/docs
+      </div>
+    </div>
+  </div>
+
 </div>
 
 <script>

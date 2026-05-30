@@ -1,0 +1,68 @@
+BACKEND SETUP — READ THIS FIRST (Wali)
+=======================================
+Most of the original blockers are now resolved. One remaining step before the server starts.
+
+RESOLVED
+---------
+✓ Port conflict — agents now default to Ollama on 11434, FastAPI runs on 8001
+✓ Model env vars — both agents read MODEL_URL + MODEL_NAME from .env (no more hardcoded URLs)
+✓ httpx removed from agents — both now use the openai client (cleaner, consistent)
+✓ xgboost added to requirements.txt
+✓ PostgreSQL installed and urbanforge DB created on the DGX Spark
+✓ All Python deps installed in ~/venv
+
+
+ONE REMAINING STEP — create your .env
+---------------------------------------
+On the DGX Spark (ssh asus@100.93.45.108):
+
+  cp ~/UrbanForge/backend/.env.example ~/UrbanForge/backend/.env
+
+The .env.example already has the correct values for Ollama + nemotron-3-super.
+Just copy it. No edits needed unless you want to change the DB password.
+
+
+THEN START THE SERVER
+----------------------
+  cd ~/UrbanForge/backend
+  source ~/venv/bin/activate
+  pip install xgboost  (first time only — was missing from earlier install)
+  uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+
+Verify it's up:
+  curl http://localhost:8001/health
+
+You should see: {"status": "ok", "spatial_layers": {...}}
+
+
+MAKE SURE OLLAMA IS RUNNING
+-----------------------------
+Nemotron must be serving before the backend can run impact analysis.
+Check: curl -s http://localhost:11434/v1/models
+
+If empty:
+  tmux new -s nemotron
+  ollama serve
+  Ctrl+B then D to detach
+
+
+STILL MISSING (stretch goals, not blockers for demo)
+------------------------------------------------------
+- DELETE /building/{id} endpoint not implemented
+- Spatial PostGIS tables (traffic, trees, etc.) are empty until Omar's
+  data pipeline runs: python ml/data_pipeline.py
+  The backend handles empty spatial context gracefully — falls back to
+  XGBoost models + rule-based scoring, so the demo works without it.
+- No startup script (run manually for hackathon)
+
+
+API ENDPOINTS (for frontend — Rehan)
+--------------------------------------
+POST   /building               — create building, returns object with id
+GET    /buildings              — list all buildings
+GET    /building/{id}/impact   — run or return cached impact analysis
+WS     /chat/{session_id}      — WebSocket chat (send {message, building_id})
+POST   /buildings/generate-image — generate 2D image from text prompt
+GET    /health                 — server health check
+
+Backend is at http://100.93.45.108:8001 once started.

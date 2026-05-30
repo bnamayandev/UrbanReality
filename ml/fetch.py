@@ -153,6 +153,8 @@ def fetch(ckan_id: str, prefer: str = "geojson") -> tuple[gpd.GeoDataFrame | pd.
                 lm = _last_modified(pkg)
                 if is_geo:
                     return _read_geo_bytes(resp.content), lm
+                elif candidate == "xlsx":
+                    return pd.read_excel(io.BytesIO(resp.content)), lm
                 else:
                     return _read_table_bytes(resp.content, candidate), lm
 
