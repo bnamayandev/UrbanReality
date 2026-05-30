@@ -12,6 +12,17 @@ dist
 dist-ssr
 *.local
 
+# Environment variables
+.env
+.env.*
+!.env.example
+
+# Large 3D model assets and textures (download separately)
+public/source/
+public/textures/
+public/*.glb
+public/*.zip
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

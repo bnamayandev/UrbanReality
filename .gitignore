@@ -230,6 +230,7 @@ backend/models/*.json
 frontend/node_modules/
 frontend/.next/
 frontend/.env.local
+!frontend/src/lib/
 
 # Docker
 .docker/

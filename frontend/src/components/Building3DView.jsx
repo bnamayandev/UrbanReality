@@ -23,6 +23,7 @@ async function fetchBuildingImage(agentPrompt) {
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ prompt: agentPrompt }),
   })
+  if (res.status === 503) throw new Error('no_api_key')  // Rehan's renderer: no OPENAI_API_KEY
   if (!res.ok) throw new Error(`Image API ${res.status}`)
   return res.json()  // { image_b64, image_path, metadata }
 }
@@ -98,11 +99,11 @@ export function Building3DView({ renderPayload, style }) {
 
         {error && !loading && (
           <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', padding: '20px' }}>
-            <AlertTriangle size={20} color="#f87171" />
+            <AlertTriangle size={20} color={error === 'no_api_key' ? '#facc15' : '#f87171'} />
             <span style={{ fontSize: '11px', color: '#888', textAlign: 'center' }}>
-              Image generation unavailable
-              <br />
-              <span style={{ fontSize: '10px', color: '#aaa' }}>Add an API key to .env to enable</span>
+              {error === 'no_api_key'
+                ? <>Render ready — add <span style={{ color: '#facc15', fontFamily: 'monospace' }}>OPENAI_API_KEY</span> to .env</>
+                : 'Image generation unavailable'}
             </span>
           </div>
         )}

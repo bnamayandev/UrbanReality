@@ -236,6 +236,8 @@ def predict_economic(building: dict) -> dict | None:
         X       = _row_to_array(row, meta.get("features", list(row.keys())))
         log_jobs = float(_m.economic.predict(X)[0])
         jobs    = np.expm1(log_jobs)
+        if not np.isfinite(jobs) or jobs < 0:
+            jobs = 100.0  # safe fallback if model returns NaN/inf
         score   = min(95, max(30, int(50 + jobs / 10)))
         return {
             "score": score,
