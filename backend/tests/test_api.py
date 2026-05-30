@@ -207,12 +207,19 @@ def test_xgb_commercial_vs_residential_traffic():
 # ── Image generation ──────────────────────────────────────────────────────────
 
 def test_generate_image_endpoint_exists():
-    # Route must be registered — returns 200 with error key when NeMoTron is offline
-    r = client.post("/buildings/generate-image", json={"prompt": "test"})
-    assert r.status_code != 404
-    # When NeMoTron is offline the endpoint returns {"error": "..."} not a crash
-    if r.status_code == 200 and "error" in r.json():
-        assert isinstance(r.json()["error"], str)
+    # Route moved to /generate/building-image (Rehan's router)
+    # Supports direct params — bypasses NeMoTron entirely, fully deterministic
+    r = client.post("/generate/building-image", json={
+        "building_type": "skyscraper",
+        "style": "modern_glass_tower",
+        "floors": 30,
+        "size": "medium",
+    })
+    assert r.status_code == 200
+    body = r.json()
+    assert "image_b64" in body
+    assert "metadata" in body
+    assert len(body["image_b64"]) > 100   # non-empty base64
 
 
 # ── Edge cases ────────────────────────────────────────────────────────────────

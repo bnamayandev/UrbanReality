@@ -13,6 +13,9 @@ geopandas
 pyarrow
 rasterio
 langgraph
+langchain
+langchain-openai
 openai
 pillow
+scikit-learn
 xgboost
