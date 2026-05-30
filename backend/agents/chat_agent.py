@@ -38,9 +38,9 @@ async def run_chat(message: str, building_context: dict | None, history: list) -
         model=MODEL_NAME,
         messages=messages,
         temperature=0.5,
-        max_tokens=512,
+        max_tokens=800,
     )
-    return response.choices[0].message.content
+    return response.choices[0].message.content or response.choices[0].message.reasoning or ""
 
 
 def fallback_chat(message: str) -> str:

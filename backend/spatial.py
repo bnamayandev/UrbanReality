@@ -24,6 +24,7 @@ _LAYER_FILES = {
     "business_licences": "business_licences.parquet",
     "parks":             "parks.parquet",
     "zoning":            "zoning_area.parquet",
+    "zoning_height":     "zoning_height.parquet",
     "neighbourhoods":    "neighbourhoods.parquet",
 }
 
@@ -38,7 +39,6 @@ def _load_layers():
             gdf = gpd.read_parquet(path)
         except Exception:
             try:
-                import pandas as pd
                 df = pd.read_parquet(path)
                 if "geometry" in df.columns:
                     from shapely import wkt as _wkt
@@ -61,6 +61,7 @@ def _load_layers():
         except Exception:
             pass
         _layers[key] = gdf
+        print(f"[spatial] Loaded {fname} ({len(gdf):,} rows)")
 
 
 _load_layers()
@@ -74,12 +75,11 @@ def _cache_key(lat: float, lng: float) -> str:
     return f"{round(lat, 4)},{round(lng, 4)}"
 
 
-def _query_radius(layer_key: str, point_4326: Point, label_col: str, extra_cols: list[str]) -> list[dict]:
+def _query_radius(layer_key: str, point_4326: Point, label_col: str, extra_cols: list[str], limit: int = 20) -> list[dict]:
     gdf = _layers.get(layer_key)
     if gdf is None or gdf.empty:
         return []
     try:
-        # Project to UTM Zone 17N (EPSG:32617) — accurate metres for Toronto
         gdf_utm = gdf.to_crs("EPSG:32617")
         pt_gdf  = gpd.GeoDataFrame(geometry=[point_4326], crs="EPSG:4326").to_crs("EPSG:32617")
         pt_utm  = pt_gdf.geometry.iloc[0]
@@ -87,10 +87,15 @@ def _query_radius(layer_key: str, point_4326: Point, label_col: str, extra_cols:
         nearby  = gdf_utm[gdf_utm.intersects(buffer)]
 
         keep = [c for c in [label_col] + extra_cols if c in nearby.columns]
-        rows = nearby[keep].head(20).to_dict("records")
-        return rows
+        return nearby[keep].head(limit).to_dict("records")
     except Exception:
         return []
+
+
+def _query_nearest(layer_key: str, point_4326: Point, label_col: str, extra_cols: list[str]) -> dict | None:
+    """Return the single nearest feature within RADIUS_M, or None."""
+    results = _query_radius(layer_key, point_4326, label_col, extra_cols, limit=1)
+    return results[0] if results else None
 
 
 def get_spatial_context(lat: float, lng: float, db=None) -> dict:
@@ -101,35 +106,54 @@ def get_spatial_context(lat: float, lng: float, db=None) -> dict:
     pt = Point(lng, lat)
 
     context = {
+        # Traffic — now has real directional counts from Omar's tmc_most_recent_summary_data
         "traffic_intersections": _query_radius(
             "traffic_volumes", pt,
-            label_col="location",
-            extra_cols=["volume_8hr_vehicles", "count_date"],
+            label_col="location_name",
+            extra_cols=["total_vehicle", "total_pedestrian", "total_bike",
+                        "am_peak_vehicle", "pm_peak_vehicle", "latest_count_date"],
         ),
+        # TTC stops
         "ttc_stops": _query_radius(
             "ttc_stops", pt,
             label_col="stop_name",
             extra_cols=["stop_id"],
         ),
+        # Street trees
         "street_trees": _query_radius(
             "street_trees", pt,
             label_col="common_name",
             extra_cols=["species", "dbh_trunk"],
         ),
+        # Business licences
         "businesses": _query_radius(
             "business_licences", pt,
             label_col="Category",
-            extra_cols=["Business Name"],
+            extra_cols=["Operating Name"],
         ),
+        # Parks
         "parks": _query_radius(
             "parks", pt,
             label_col="ASSET_NAME",
-            extra_cols=["ASSET_TYPE"],
+            extra_cols=["TYPE", "AMENITIES"],
         ),
+        # Zoning area (land use class)
         "zoning": _query_radius(
             "zoning", pt,
             label_col="ZBL_ZONE",
             extra_cols=["ZONE_CLASS"],
+        ),
+        # Zoning height overlay — new from Omar, tells us max height allowed
+        "zoning_height": _query_nearest(
+            "zoning_height", pt,
+            label_col="HT_LABEL",
+            extra_cols=["HT_STORIES", "HT_STRING"],
+        ),
+        # Neighbourhood context — now has real income + density from 2021 census
+        "neighbourhood": _query_nearest(
+            "neighbourhoods", pt,
+            label_col="name",
+            extra_cols=["median_income", "population_2021", "population_density"],
         ),
     }
 
