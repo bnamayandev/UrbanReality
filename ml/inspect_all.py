@@ -1,8 +1,10 @@
-import pandas as pd
-import geopandas as gpd
+import os
 from pathlib import Path
 
-DATA_DIR = Path("data")  # change if your folder is elsewhere
+import geopandas as gpd
+import pandas as pd
+
+DATA_DIR = Path(os.getenv("DATA_DIR", Path(__file__).parent.parent / "data"))
 
 pd.set_option("display.max_columns", None)
 pd.set_option("display.width", 200)

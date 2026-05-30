@@ -54,9 +54,11 @@ def cached(name: str) -> bool:
 def dl_street_trees():
     if cached("street_trees"):
         return
-    gdf, lm = fetch("street-tree-data", prefer="geojson")
-    keep = [c for c in ["DBH_TRUNK", "SPECIES_DESC", "COMMON_NAME", "geometry"] if c in gdf.columns]
-    gdf = gdf[keep]
+    gdf, lm = fetch_csv_with_latlon(
+        "street-tree-data",
+        lat_col="LATITUDE", lon_col="LONGITUDE",
+        extra_cols=["DBH_TRUNK", "COMMON_NAME", "SPECIES_DESC"],
+    )
     gdf = gdf.rename(columns={"DBH_TRUNK": "dbh_trunk", "COMMON_NAME": "common_name", "SPECIES_DESC": "species"})
     _save("street_trees", gdf, lm)
 
