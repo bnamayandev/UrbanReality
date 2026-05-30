@@ -38,6 +38,40 @@ class GenerateResponse(BaseModel):
     metadata: dict
 
 
+def _infer_params(prompt: str) -> tuple[str, str, int, str]:
+    """Derive (building_type, style, floors, size) from a free-form description."""
+    p = prompt.lower()
+
+    # Building type
+    if any(w in p for w in ["skyscraper", "high-rise", "highrise", "tower", "condo"]):
+        building_type = "skyscraper"
+    elif any(w in p for w in ["house", "home", "bungalow", "cottage", "detached"]):
+        building_type = "house"
+    else:
+        building_type = "suburban_building"
+
+    # Style / material
+    if any(w in p for w in ["timber", "wood", "mass timber"]):
+        style = "traditional_brick"
+    elif any(w in p for w in ["concrete", "brutalist", "brutalism"]):
+        style = "brutalist_concrete"
+    elif any(w in p for w in ["retail", "podium", "mall", "plaza", "commercial"]):
+        style = "retail_complex"
+    else:
+        style = "modern_glass_tower"
+
+    # Floors — scan for numbers followed by "floor" / "storey" / "story"
+    import re
+    m = re.search(r'(\d+)\s*[-]?\s*(floor|storey|story|fl)', p)
+    floors = int(m.group(1)) if m else 20
+    floors = max(1, min(floors, 80))
+
+    # Size by floor count
+    size = "large" if floors > 40 else "medium" if floors > 10 else "small"
+
+    return building_type, style, floors, size
+
+
 @router.post("/building-image", response_model=GenerateResponse)
 def generate_image(req: GenerateRequest):
     # Return 503 when API key is missing — frontend shows a helpful message
@@ -58,14 +92,15 @@ def generate_image(req: GenerateRequest):
         user_description=user_desc,
     )
 
-    # Fallback to deterministic Pillow renderer if DALL-E fails with a valid key
+    # Fallback: parse the prompt so the Pillow render at least matches the description
     if png is None:
-        png = render_building(
-            req.building_type or "skyscraper",
-            req.style or "modern_glass_tower",
-            req.floors or 20,
-            req.size or "medium",
-        )
+        btype, style, floors, size = _infer_params(user_desc)
+        # Override with explicit params when caller sends them
+        btype  = req.building_type or btype
+        style  = req.style or style
+        floors = req.floors or floors
+        size   = req.size or size
+        png = render_building(btype, style, floors, size)
         renderer = "Pillow · local"
 
     return GenerateResponse(

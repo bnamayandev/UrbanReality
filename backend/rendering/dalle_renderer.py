@@ -40,7 +40,8 @@ def _normalise(raw: bytes) -> bytes:
 
 
 def generate_dalle_image(user_description: str) -> Optional[bytes]:
-    """Generate a building image via DALL-E 3. Returns PNG bytes or None."""
+    """Generate a building image via gpt-image-1. Returns PNG bytes or None."""
+    load_dotenv(override=True)  # always re-read so key rotations take effect
     api_key = os.getenv("OPENAI_API_KEY", "")
     if not api_key or api_key.startswith("your_") or api_key.startswith("sk-your"):
         return None
@@ -50,11 +51,10 @@ def generate_dalle_image(user_description: str) -> Optional[bytes]:
         client = OpenAI(api_key=api_key)
 
         result = client.images.generate(
-            model="dall-e-3",
+            model="gpt-image-1",
             prompt=_build_prompt(user_description),
-            size="1024x1792",
-            quality="hd",
-            response_format="b64_json",
+            size="1024x1536",
+            quality="high",
             n=1,
         )
 
