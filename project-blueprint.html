@@ -216,6 +216,7 @@
     <button data-tab="data">Open Data <span class="badge">Guide</span></button>
     <button data-tab="team">Team Plan <span class="badge">6 ppl</span></button>
     <button data-tab="prototype">Prototype <span class="badge">Live</span></button>
+    <button data-tab="pitch">Pitch <span class="badge" style="background:#ff4444;color:#fff">Judges</span></button>
   </nav>
 </header>
 
@@ -810,6 +811,199 @@
     <span>ℹ️</span>
     <span>This prototype simulates the UI/UX only. The production app uses Mapbox GL JS for the map with real Toronto geospatial data, and NVIDIA NeMoTron on DGX Spark for all AI responses.</span>
   </div>
+</div>
+
+<!-- ======= PITCH ======= -->
+<div class="panel" id="tab-pitch">
+
+  <!-- HERO -->
+  <div style="text-align:center;padding:48px 24px 40px;background:linear-gradient(180deg,rgba(118,185,0,0.06) 0%,transparent 100%);border-radius:16px;margin-bottom:40px;border:1px solid var(--border)">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.15em;color:var(--green);font-weight:700;margin-bottom:16px">NVIDIA Hackathon 2026 — Urban Operations &amp; Economic Systems</div>
+    <h1 style="font-size:42px;font-weight:800;margin-bottom:12px;letter-spacing:-0.02em">Urban<span style="color:var(--green)">Forge</span></h1>
+    <p style="font-size:18px;color:var(--text);max-width:600px;margin:0 auto 24px;line-height:1.6">AI-powered urban development intelligence — so anyone can understand what gets built in their city, and what it means for them.</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <span class="tag green" style="font-size:13px;padding:6px 14px">NVIDIA NeMoTron</span>
+      <span class="tag blue" style="font-size:13px;padding:6px 14px">DGX Spark Local Inference</span>
+      <span class="tag" style="font-size:13px;padding:6px 14px">Toronto Open Data</span>
+      <span class="tag" style="font-size:13px;padding:6px 14px">PostGIS + FastAPI + Mapbox</span>
+    </div>
+  </div>
+
+  <!-- THE HOOK -->
+  <div class="grid grid-2" style="margin-bottom:28px">
+    <div class="card accent" style="padding:28px">
+      <div class="card-title">The Problem in One Sentence</div>
+      <h2 style="font-size:22px;line-height:1.4;margin-bottom:16px">"Toronto approves 2,000+ buildings a year. No one outside City Hall can understand what any of them actually mean."</h2>
+      <p>The data exists — traffic volumes, zoning bylaws, street trees, transit load. But it lives in 3+ disconnected portals, raw and inaccessible. There is no tool that translates it into human-meaningful insight.</p>
+    </div>
+    <div class="card blue" style="padding:28px">
+      <div class="card-title">The Opportunity</div>
+      <div class="problem-stat" style="padding:10px 0">
+        <div class="stat-num">2,000+</div>
+        <div><div class="stat-label">Development applications per year</div><div class="stat-sub">Each one affects traffic, rent, transit, green space — invisibly</div></div>
+      </div>
+      <div class="problem-stat" style="padding:10px 0">
+        <div class="stat-num">0</div>
+        <div><div class="stat-label">Public tools for pre-build impact simulation</div><div class="stat-sub">Developers use $50K proprietary software. Everyone else uses imagination.</div></div>
+      </div>
+      <div class="problem-stat" style="padding:10px 0;border:none">
+        <div class="stat-num">$4B+</div>
+        <div><div class="stat-label">Value of active Toronto development applications</div><div class="stat-sub">Decisions made with incomplete public information</div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- THE SOLUTION -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:20px">
+    <div class="overline">What We Built</div>
+    <h2 style="font-size:26px">Drop a building. Get the full picture — instantly.</h2>
+  </div>
+
+  <div class="grid grid-3" style="margin-bottom:28px">
+    <div class="card" style="text-align:center;padding:28px 20px">
+      <div style="font-size:36px;margin-bottom:12px">📍</div>
+      <h3 style="margin-bottom:8px">Place Anywhere</h3>
+      <p>Click anywhere on Toronto's interactive 3D map. Configure height, footprint, type, and material in seconds.</p>
+    </div>
+    <div class="card accent" style="text-align:center;padding:28px 20px">
+      <div style="font-size:36px;margin-bottom:12px">🧠</div>
+      <h3 style="margin-bottom:8px">NeMoTron Analyzes</h3>
+      <p>NVIDIA NeMoTron runs locally on DGX Spark — zero latency, zero API cost — and reasons over 6 live Toronto Open Data layers within 500m.</p>
+    </div>
+    <div class="card" style="text-align:center;padding:28px 20px">
+      <div style="font-size:36px;margin-bottom:12px">📊</div>
+      <h3 style="margin-bottom:8px">Impact in 5 Dimensions</h3>
+      <p>Environmental, traffic, economic, infrastructure, and housing impact — scored, explained, and queryable via a citizen chatbot.</p>
+    </div>
+  </div>
+
+  <!-- WHY NVIDIA -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:20px">
+    <div class="overline">Why This Is an NVIDIA Story</div>
+    <h2 style="font-size:26px">The hardware makes the product possible</h2>
+  </div>
+
+  <div class="card accent" style="padding:28px;margin-bottom:16px">
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:24px">
+      <div>
+        <div class="card-title">Local Inference on DGX Spark</div>
+        <h3 style="margin-bottom:8px">Zero latency. Zero cost per call.</h3>
+        <p>Running NeMoTron locally means real-time analysis with no API rate limits. A 40-storey building impact report in under 2 seconds — impossible on cloud inference at hackathon scale.</p>
+      </div>
+      <div>
+        <div class="card-title">NeMoTron's Reasoning Quality</div>
+        <h3 style="margin-bottom:8px">Not just retrieval — actual reasoning.</h3>
+        <p>NeMoTron doesn't just look up data. It reasons: "Given 14 trees within 80m, 3 TTC stops, and a LOS-C intersection — here's what a 48-storey tower does to this block." That's what makes the analysis trustworthy.</p>
+      </div>
+      <div>
+        <div class="card-title">The Bigger Vision</div>
+        <h3 style="margin-bottom:8px">Every city. Every development.</h3>
+        <p>UrbanForge is designed to be city-agnostic. Toronto is the proof of concept. With NVIDIA infrastructure, this scales to any city with open geospatial data — globally.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- DEMO FLOW -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:20px">
+    <div class="overline">Demo Flow — 3 Minutes</div>
+    <h2 style="font-size:26px">What the judges will see</h2>
+  </div>
+
+  <div style="display:flex;flex-direction:column;gap:10px;margin-bottom:28px">
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--green)">
+      <div style="font-size:22px;font-weight:800;color:var(--green);width:36px;flex-shrink:0">1</div>
+      <div><strong>Open the map.</strong> Toronto rendered in 3D with all active development applications already visible as markers. Click any marker — instant building detail card with specs and status.</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--green)">
+      <div style="font-size:22px;font-weight:800;color:var(--green);width:36px;flex-shrink:0">2</div>
+      <div><strong>Switch to Builder Mode.</strong> Click King &amp; Spadina. Configure a 40-storey mixed-use tower, 2,000m² footprint, mass timber. Hit Analyze Impact.</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--green)">
+      <div style="font-size:22px;font-weight:800;color:var(--green);width:36px;flex-shrink:0">3</div>
+      <div><strong>NeMoTron returns.</strong> Live on DGX Spark. Five impact scores appear with real descriptions citing actual data: "King &amp; Spadina intersection moves from LOS C → D during peak hours. +420 daily TTC boardings."</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--blue)">
+      <div style="font-size:22px;font-weight:800;color:var(--blue);width:36px;flex-shrink:0">4</div>
+      <div><strong>Open the citizen chatbot.</strong> Ask: "Will this raise rent for people nearby?" Watch NeMoTron reason through housing supply, vacancy rate, and displacement risk in natural language.</div>
+    </div>
+    <div style="display:flex;gap:16px;align-items:flex-start;padding:16px;background:var(--surface);border:1px solid var(--border);border-radius:10px;border-left:3px solid var(--blue)">
+      <div style="font-size:22px;font-weight:800;color:var(--blue);width:36px;flex-shrink:0">5</div>
+      <div><strong>Move the building.</strong> Place it 300m east on Bay St instead. The impact scores change immediately — different zoning, more TTC exposure, fewer trees displaced. Same building, different story.</div>
+    </div>
+  </div>
+
+  <!-- WHO IT'S FOR -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:20px">
+    <div class="overline">Who Uses This</div>
+    <h2 style="font-size:26px">Three users. One platform.</h2>
+  </div>
+
+  <div class="grid grid-3" style="margin-bottom:28px">
+    <div class="card">
+      <div style="font-size:28px;margin-bottom:10px">🏗️</div>
+      <div class="card-title">Developers &amp; Architects</div>
+      <h3 style="margin-bottom:8px">Site feasibility in minutes</h3>
+      <p>Before spending $200K on a feasibility study, drop the building on the map. Know if zoning allows it, what the traffic impact is, and whether the city will push back — instantly.</p>
+    </div>
+    <div class="card">
+      <div style="font-size:28px;margin-bottom:10px">🏘️</div>
+      <div class="card-title">Residents &amp; Advocates</div>
+      <h3 style="margin-bottom:8px">Informed participation</h3>
+      <p>When a tower is proposed near you, stop guessing. Ask the AI what it means for your rent, your commute, your park. Show up to the planning meeting with data.</p>
+    </div>
+    <div class="card">
+      <div style="font-size:28px;margin-bottom:10px">💼</div>
+      <div class="card-title">Investors &amp; City Planners</div>
+      <h3 style="margin-bottom:8px">Portfolio-level intelligence</h3>
+      <p>Overlay all active developments. See where density is concentrating, where infrastructure pressure is building, and where opportunity is emerging — across the entire city.</p>
+    </div>
+  </div>
+
+  <!-- WHAT MAKES IT DIFFERENT -->
+  <div class="divider"></div>
+  <div class="section-header" style="margin-bottom:20px">
+    <div class="overline">Differentiation</div>
+    <h2 style="font-size:26px">Why this hasn't been built before</h2>
+  </div>
+
+  <div class="grid grid-2" style="margin-bottom:28px">
+    <div>
+      <div class="card" style="margin-bottom:10px;border-left:3px solid var(--danger)">
+        <div class="card-title" style="color:var(--danger)">Existing Tools</div>
+        <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="feature-icon">❌</div><div><p style="margin:0">City portals show raw data — no analysis, no context, no AI</p></div></div>
+        <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="feature-icon">❌</div><div><p style="margin:0">Proprietary software costs $30K+/yr — inaccessible to the public</p></div></div>
+        <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="feature-icon">❌</div><div><p style="margin:0">No tool lets you simulate a building before it exists</p></div></div>
+        <div class="feature-row" style="padding:8px 0"><div class="feature-icon">❌</div><div><p style="margin:0">Data is siloed — traffic here, zoning there, trees somewhere else</p></div></div>
+      </div>
+    </div>
+    <div>
+      <div class="card accent" style="margin-bottom:10px">
+        <div class="card-title">UrbanForge</div>
+        <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="feature-icon">✅</div><div><p style="margin:0">NeMoTron reasons over 6 data layers simultaneously — not retrieval, actual intelligence</p></div></div>
+        <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="feature-icon">✅</div><div><p style="margin:0">Free and open — built on Toronto Open Data and open-source tooling</p></div></div>
+        <div class="feature-row" style="padding:8px 0;border-bottom:1px solid var(--border)"><div class="feature-icon">✅</div><div><p style="margin:0">Simulate any building, anywhere, before a permit is filed</p></div></div>
+        <div class="feature-row" style="padding:8px 0"><div class="feature-icon">✅</div><div><p style="margin:0">Single unified platform — all datasets fused, spatially indexed, instantly queryable</p></div></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CLOSING STATEMENT -->
+  <div style="background:linear-gradient(135deg,rgba(118,185,0,0.08),rgba(0,163,255,0.06));border:1px solid var(--border);border-radius:16px;padding:40px;text-align:center;margin-bottom:8px">
+    <div style="font-size:11px;text-transform:uppercase;letter-spacing:0.12em;color:var(--green);font-weight:700;margin-bottom:16px">The Ask</div>
+    <h2 style="font-size:28px;font-weight:800;margin-bottom:16px;line-height:1.3">Cities are being shaped by decisions most people never see.<br><span style="color:var(--green)">UrbanForge changes that.</span></h2>
+    <p style="font-size:15px;max-width:640px;margin:0 auto 28px;color:var(--text);line-height:1.7">We built in 36 hours what city governments have been promising for a decade — a single, intelligent, public interface to understand urban development. Powered by NVIDIA NeMoTron. Open to everyone.</p>
+    <div style="display:flex;gap:12px;justify-content:center;flex-wrap:wrap">
+      <div style="background:var(--green);color:#000;border-radius:8px;padding:12px 28px;font-weight:700;font-size:15px">Built in 36 hours</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 28px;font-weight:600;font-size:15px">6 engineers</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 28px;font-weight:600;font-size:15px">1 DGX Spark</div>
+      <div style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:12px 28px;font-weight:600;font-size:15px">Every city. Starting here.</div>
+    </div>
+  </div>
+
 </div>
 
 <script>
