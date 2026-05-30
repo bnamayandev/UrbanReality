@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { Activity, Cpu, Database, Wifi, WifiOff } from 'lucide-react'
 import { getHealth } from '../api'
+import { ModeSwitcher } from './ModeSwitcher'
 
-export function Header({ buildingCount = 0 }) {
+export function Header({ buildingCount = 0, mode, onModeChange }) {
   const [health, setHealth]   = useState(null)
   const [online, setOnline]   = useState(null)
 
@@ -88,8 +89,9 @@ export function Header({ buildingCount = 0 }) {
         )}
       </div>
 
-      {/* Right: building count + hackathon badge */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginLeft: 'auto' }}>
+      {/* Right: mode switcher + building count + hackathon badge */}
+      <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto' }}>
+        <ModeSwitcher mode={mode} onChange={onModeChange} />
         {buildingCount > 0 && (
           <span style={{ fontSize: '11px', color: 'var(--text-2)' }}>
             <span style={{ fontFamily: 'var(--mono)', color: 'var(--cyan)', fontWeight: 600 }}>{buildingCount}</span> buildings

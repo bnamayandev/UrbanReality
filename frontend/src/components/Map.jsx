@@ -76,15 +76,16 @@ function ExistingMarkers({ buildings, onSelect, selected }) {
   ))
 }
 
-export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting }) {
+export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting, readOnly = false }) {
   const mapRef  = useRef(null)
-  const [cursor, setCursor] = useState('crosshair')
+  const [cursor, setCursor] = useState(readOnly ? 'default' : 'crosshair')
   const [selectedExisting, setSelectedExisting] = useState(null)
 
   const handleClick = useCallback((e) => {
+    if (readOnly || !onCoordSelect) return
     const { lng, lat } = e.lngLat
     onCoordSelect({ lat, lng })
-  }, [onCoordSelect])
+  }, [onCoordSelect, readOnly])
 
   // Fly to coord when placed
   useEffect(() => {
