@@ -1,68 +1,68 @@
-BACKEND SETUP — READ THIS FIRST
-================================
-Written for whoever is picking up backend (Task 4). Use Claude to fix these.
-Issues are in priority order — top 2 block the server from starting at all.
+BACKEND SETUP — READ THIS FIRST (Wali)
+=======================================
+Most of the original blockers are now resolved. One remaining step before the server starts.
+
+RESOLVED
+---------
+✓ Port conflict — agents now default to Ollama on 11434, FastAPI runs on 8001
+✓ Model env vars — both agents read MODEL_URL + MODEL_NAME from .env (no more hardcoded URLs)
+✓ httpx removed from agents — both now use the openai client (cleaner, consistent)
+✓ xgboost added to requirements.txt
+✓ PostgreSQL installed and urbanforge DB created on the DGX Spark
+✓ All Python deps installed in ~/venv
 
 
-CRITICAL (server won't run without fixing these)
--------------------------------------------------
+ONE REMAINING STEP — create your .env
+---------------------------------------
+On the DGX Spark (ssh asus@100.93.45.108):
 
-1. PORT CONFLICT
-   NEMORON_URL defaults to http://localhost:8000 in .env.example
-   FastAPI also runs on 8000. They clash.
-   Fix: run the model server on 8001, set NEMORON_URL=http://localhost:8001 in your .env
+  cp ~/UrbanForge/backend/.env.example ~/UrbanForge/backend/.env
 
-2. NO .env FILE
-   Only .env.example exists. Server won't start.
-   Fix: cp backend/.env.example backend/.env
-   Then fill in DATABASE_URL, NEMORON_URL, MAPBOX_TOKEN
-
-3. SPATIAL TABLES DON'T EXIST IN POSTGRES
-   spatial.py queries tables: traffic_volumes, ttc_stops, street_trees,
-   business_licences, parks, zoning_bylaws
-   These tables are never created — the data pipeline is in omar/data branch (not merged).
-   Fix: merge omar/data branch, then write a load_spatial.py script that reads
-   the parquet files from data/ and writes them into PostGIS.
-   Until this is done, all spatial queries return empty lists (fallback still works).
+The .env.example already has the correct values for Ollama + nemotron-3-super.
+Just copy it. No edits needed unless you want to change the DB password.
 
 
-MEDIUM (bad UX but server runs)
---------------------------------
+THEN START THE SERVER
+----------------------
+  cd ~/UrbanForge/backend
+  source ~/venv/bin/activate
+  pip install xgboost  (first time only — was missing from earlier install)
+  uvicorn main:app --host 0.0.0.0 --port 8001 --reload
 
-4. IMPACT ENDPOINT BLOCKS FOR ~20s
-   GET /building/{id}/impact holds the HTTP connection open while NeMoTron runs.
-   Frontend will appear frozen.
-   Fix: change to POST /building/{id}/analyze → returns 202 + job_id,
-   then GET /building/{id}/impact polls for result.
+Verify it's up:
+  curl http://localhost:8001/health
 
-5. NO DELETE /building/{id} ENDPOINT
-   Builder UI needs "Clear Building" to remove a placed building from DB.
-   Fix: add a 2-line delete route to routers/buildings.py
-
-6. ChatSession.building_id FK exists in the model but router never sets it
-   Fix: pass building_id when creating the session in chat.py
+You should see: {"status": "ok", "spatial_layers": {...}}
 
 
-MINOR
-------
+MAKE SURE OLLAMA IS RUNNING
+-----------------------------
+Nemotron must be serving before the backend can run impact analysis.
+Check: curl -s http://localhost:11434/v1/models
 
-7. No startup script
-   Fix: add backend/run.sh with:
-     uvicorn main:app --host 0.0.0.0 --port 8000 --reload
+If empty:
+  tmux new -s nemotron
+  ollama serve
+  Ctrl+B then D to detach
 
-8. NEMORON_URL typo in variable name (missing T) — works fine, just inconsistent
+
+STILL MISSING (stretch goals, not blockers for demo)
+------------------------------------------------------
+- DELETE /building/{id} endpoint not implemented
+- Spatial PostGIS tables (traffic, trees, etc.) are empty until Omar's
+  data pipeline runs: python ml/data_pipeline.py
+  The backend handles empty spatial context gracefully — falls back to
+  XGBoost models + rule-based scoring, so the demo works without it.
+- No startup script (run manually for hackathon)
 
 
-MODEL ENDPOINT NOTE
--------------------
-If running llama.cpp server locally (like the Qwen setup):
-  - llama.cpp's server already exposes an OpenAI-compatible /v1/chat/completions endpoint
-  - Set NEMORON_URL to wherever that server is running
-  - Change the model name in agents/impact_agent.py and agents/chat_agent.py
-    to match whatever model name llama.cpp reports (usually the filename or "local-model")
+API ENDPOINTS (for frontend — Rehan)
+--------------------------------------
+POST   /building               — create building, returns object with id
+GET    /buildings              — list all buildings
+GET    /building/{id}/impact   — run or return cached impact analysis
+WS     /chat/{session_id}      — WebSocket chat (send {message, building_id})
+POST   /buildings/generate-image — generate 2D image from text prompt
+GET    /health                 — server health check
 
-If using NVIDIA Build API (cloud fallback):
-  - Set NEMORON_URL=https://integrate.api.nvidia.com/v1
-  - Add NGC_API_KEY to .env
-  - Add Authorization header to the httpx calls in both agent files:
-    headers={"Authorization": f"Bearer {os.getenv('NGC_API_KEY')}"}
+Backend is at http://100.93.45.108:8001 once started.

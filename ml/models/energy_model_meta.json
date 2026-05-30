@@ -1,0 +1,28 @@
+{
+  "features": [
+    "floor_area_m2",
+    "building_type_enc"
+  ],
+  "target": "log1p_annual_electricity_kwh",
+  "source": "Toronto EWRB real measurements",
+  "building_type_classes": [
+    "Community Center and Social Meeting Hall",
+    "Drinking Water Treatment & Distribution",
+    "Fire Station",
+    "Indoor Arena",
+    "Library",
+    "Office",
+    "Other",
+    "Other - Entertainment/Public Assembly",
+    "Other - Public Services",
+    "Other - Recreation",
+    "Parking",
+    "Police Station",
+    "Pre-school/Daycare",
+    "Residential Care Facility",
+    "Transportation Terminal/Station",
+    "Wastewater Treatment Plant"
+  ],
+  "mae": 1.4621,
+  "r2": 0.4133
+}

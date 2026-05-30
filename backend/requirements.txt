@@ -10,8 +10,14 @@ python-dotenv
 httpx
 websockets
 Pillow
+geopandas
+pyarrow
+rasterio
 langgraph
 langchain
 langchain-openai
 langchain-google-genai
 google-genai
+openai
+scikit-learn
+xgboost

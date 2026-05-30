@@ -3,6 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine, Base
 from routers import buildings, chat, generate
+from spatial import layers_status
 
 # Create all tables on startup
 Base.metadata.create_all(bind=engine)
@@ -23,4 +24,4 @@ app.include_router(generate.router)
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "spatial_layers": layers_status()}

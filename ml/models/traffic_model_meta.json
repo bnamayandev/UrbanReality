@@ -1,0 +1,24 @@
+{
+  "features": [
+    "total_gfa_m2",
+    "structure_type_enc",
+    "work_enc",
+    "ASSEMBLY",
+    "INSTITUTIONAL",
+    "RESIDENTIAL",
+    "BUSINESS_AND_PERSONAL_SERVICES",
+    "MERCANTILE",
+    "INDUSTRIAL"
+  ],
+  "target": "daily_trips_est",
+  "ite_rates_used": {
+    "RESIDENTIAL": 6.65,
+    "ASSEMBLY": 11.03,
+    "INSTITUTIONAL": 11.03,
+    "BUSINESS_AND_PERSONAL_SERVICES": 11.03,
+    "MERCANTILE": 42.7,
+    "INDUSTRIAL": 6.97
+  },
+  "mae": 10.28,
+  "r2": 0.9782
+}

@@ -7,6 +7,7 @@ from models import Building, Impact
 from schemas import BuildingCreate, BuildingOut, ImpactOut, ImpactDimension
 from spatial import get_spatial_context
 from agents.impact_agent import run_impact_analysis, fallback_impact
+from xgb_models import predict_energy, predict_traffic, predict_economic
 
 router = APIRouter(prefix="/building", tags=["buildings"])
 
@@ -51,10 +52,46 @@ async def get_impact(building_id: int, db: Session = Depends(get_db)):
     }
     spatial_context = get_spatial_context(building.lat, building.lng, db)
 
+    # --- XGBoost predictions (fast, local, no GPU needed) ---
+    xgb_energy   = predict_energy(building_spec)
+    xgb_traffic  = predict_traffic(building_spec)
+    xgb_economic = predict_economic(building_spec)
+
+    # --- NeMoTron for richer narrative + dimensions XGB doesn't cover ---
     try:
         result = await run_impact_analysis(building_spec, spatial_context)
+        # Blend: XGBoost scores override NeMoTron where available (more reliable)
+        if xgb_energy:
+            result["environmental"]["score"] = xgb_energy["score"]
+            result["environmental"]["description"] += f" | XGB: {xgb_energy['description']}"
+        if xgb_traffic:
+            result["traffic"]["score"] = xgb_traffic["score"]
+            result["traffic"]["description"] += f" | XGB: {xgb_traffic['description']}"
+        if xgb_economic:
+            result["economic"]["score"] = xgb_economic["score"]
+            result["economic"]["description"] += f" | XGB: {xgb_economic['description']}"
     except Exception:
-        result = fallback_impact(building_spec)
+        # NeMoTron unavailable — build result entirely from XGB + rule-based fallback
+        fallback = fallback_impact(building_spec)
+        result = {
+            "environmental": {
+                "score": xgb_energy["score"] if xgb_energy else fallback["environmental"]["score"],
+                "description": (xgb_energy["description"] if xgb_energy
+                                else fallback["environmental"]["description"]),
+            },
+            "traffic": {
+                "score": xgb_traffic["score"] if xgb_traffic else fallback["traffic"]["score"],
+                "description": (xgb_traffic["description"] if xgb_traffic
+                                else fallback["traffic"]["description"]),
+            },
+            "economic": {
+                "score": xgb_economic["score"] if xgb_economic else fallback["economic"]["score"],
+                "description": (xgb_economic["description"] if xgb_economic
+                                else fallback["economic"]["description"]),
+            },
+            "infrastructure": fallback["infrastructure"],
+            "housing":        fallback["housing"],
+        }
 
     impact = Impact(
         building_id=building_id,

@@ -10,6 +10,7 @@ Set FORCE_REFRESH=1 to re-download everything.
 """
 
 import os
+import re
 import sys
 from pathlib import Path
 
@@ -28,7 +29,7 @@ FORCE = os.getenv("FORCE_REFRESH", "0") == "1"
 
 # Add ml/ to path so fetch.py is importable
 sys.path.insert(0, str(Path(__file__).parent))
-from fetch import fetch, fetch_gtfs_stops, fetch_csv_with_latlon, download_raster
+from fetch import fetch, fetch_resource, fetch_gtfs_stops, fetch_csv_with_latlon, download_raster
 
 
 def _save(name: str, data: gpd.GeoDataFrame | pd.DataFrame, last_mod: str):
@@ -53,7 +54,6 @@ def cached(name: str) -> bool:
 def dl_street_trees():
     if cached("street_trees"):
         return
-    # Street tree dataset is CSV-only (no GeoJSON resource) with LATITUDE/LONGITUDE columns
     gdf, lm = fetch_csv_with_latlon(
         "street-tree-data",
         lat_col="LATITUDE", lon_col="LONGITUDE",
@@ -77,13 +77,17 @@ def dl_neighbourhoods():
 
     # Wide-format profiles CSV (columns = neighbourhood names, rows = variables)
     try:
-        profiles_raw, _ = fetch("neighbourhood-profiles", prefer="csv")
+        profiles_raw, _ = fetch_resource(
+            "neighbourhood-profiles",
+            "neighbourhood-profiles-2021-158-model",
+            sheet_name="hd2021_census_profile",
+        )
         profiles_raw.columns = [str(c).strip() for c in profiles_raw.columns]
         var_col = profiles_raw.columns[0]
 
         variables = profiles_raw[var_col].astype(str)
-        income_mask = variables.str.contains("Median after-tax income", na=False, case=False)
-        density_mask = variables.str.contains("Population density", na=False, case=False)
+        income_mask = variables.str.contains("Median after-tax income in 2020 among recipients", na=False, case=False)
+        population_mask = variables.str.contains("Total - Age groups of the population", na=False, case=False)
 
         def extract_row(mask):
             rows = profiles_raw[mask]
@@ -98,14 +102,20 @@ def dl_neighbourhoods():
             )
 
         income_series = extract_row(income_mask)
-        density_series = extract_row(density_mask)
+        population_series = extract_row(population_mask)
+
+        profile = pd.DataFrame({"profile_name": profiles_raw.columns[1:]})
 
         if income_series is not None:
-            income_series.name = "median_income"
-            hoods = hoods.set_index(name_col).join(income_series, how="left").reset_index()
-        if density_series is not None:
-            density_series.name = "population_density"
-            hoods = hoods.set_index(name_col).join(density_series, how="left").reset_index()
+            profile["median_income"] = profile["profile_name"].map(income_series)
+        if population_series is not None:
+            profile["population_2021"] = profile["profile_name"].map(population_series)
+
+        hoods = hoods.merge(profile, left_on=name_col, right_on="profile_name", how="left")
+        hoods = hoods.drop(columns=["profile_name"])
+        if "population_2021" in hoods.columns:
+            area_km2 = hoods.to_crs("EPSG:3347").area / 1_000_000
+            hoods["population_density"] = hoods["population_2021"] / area_km2
     except Exception as e:
         print(f"    WARNING: neighbourhood profiles join failed ({e}) - saving polygons only")
 
@@ -115,20 +125,15 @@ def dl_neighbourhoods():
 
 def dl_zoning():
     """Save the two most useful zoning layers: base area and height overlay."""
-    for out_name, keywords in [
-        ("zoning_area",   ["zoning area", "general zoning", "zoning bylaw area"]),
-        ("zoning_height", ["height", "height overlay"]),
+    for out_name, resource_name in [
+        ("zoning_area", "Zoning Area"),
+        ("zoning_height", "Zoning Height Overlay"),
     ]:
         if cached(out_name):
             continue
         try:
-            gdf, lm = fetch("zoning-by-law", prefer="geojson")
-            # The GeoJSON may already be the right layer, or may have a 'layer' property
-            if "ZONE_CLASS" in gdf.columns or "ZBL_ZONE" in gdf.columns:
-                _save(out_name, gdf, lm)
-            else:
-                print(f"    [{out_name}] downloaded but could not identify layer columns - saving raw")
-                _save(out_name, gdf, lm)
+            gdf, lm = fetch_resource("zoning-by-law", resource_name, as_geo=True)
+            _save(out_name, gdf, lm)
         except Exception as e:
             print(f"    WARNING: {out_name} failed ({e})")
 
@@ -144,17 +149,18 @@ def dl_traffic_volumes():
     if cached("traffic_volumes"):
         return
     try:
-        # Traffic volumes has lat/lng columns
-        gdf, lm = fetch_csv_with_latlon(
+        df, lm = fetch_resource(
             "traffic-volumes-at-intersections-for-all-modes",
-            lat_col="latitude", lon_col="longitude",
-            extra_cols=["location_id", "location", "8_hr_vehicle_volume",
-                        "8_hr_pedestrian_volume", "count_date"],
+            "tmc_most_recent_summary_data",
         )
-        # Normalise the volume column name
-        vol_col = next((c for c in gdf.columns if "vehicle" in c.lower() and "volume" in c.lower()), None)
-        if vol_col:
-            gdf = gdf.rename(columns={vol_col: "volume_8hr_vehicles"})
+        df["latitude"] = pd.to_numeric(df["latitude"], errors="coerce")
+        df["longitude"] = pd.to_numeric(df["longitude"], errors="coerce")
+        df = df.dropna(subset=["latitude", "longitude"])
+        gdf = gpd.GeoDataFrame(
+            df,
+            geometry=gpd.points_from_xy(df["longitude"], df["latitude"]),
+            crs="EPSG:4326",
+        )
         _save("traffic_volumes", gdf, lm)
     except Exception as e:
         print(f"    WARNING: traffic_volumes failed ({e})")
@@ -228,8 +234,62 @@ def dl_ewrb():
     if cached("ewrb_energy"):
         return
     try:
-        df, lm = fetch("annual-energy-consumption", prefer="csv")
-        df = df.rename(columns={k: v for k, v in EWRB_RENAME.items() if k in df.columns})
+        resource = "annual-energy-consumption-data-2024.xlsx"
+        props, lm = fetch_resource("annual-energy-consumption", resource, sheet_name="Properties")
+        meters, _ = fetch_resource("annual-energy-consumption", resource, sheet_name="Meter Entries")
+
+        props = props.rename(columns={
+            "Property Name": "property_name",
+            "Portfolio Manager ID": "portfolio_manager_id",
+            "Street Address": "street_address",
+            "City/Municipality": "city",
+            "State/Province": "province",
+            "Postal Code": "postal_code",
+            "Country": "country",
+            "Property Type - Self-Selected": "building_type",
+            "Gross Floor Area": "floor_area_sqft",
+            "GFA Units": "floor_area_units",
+        })
+        props["floor_area_sqft"] = pd.to_numeric(props["floor_area_sqft"], errors="coerce")
+
+        meters = meters.rename(columns={
+            "Portfolio Manager ID": "portfolio_manager_id",
+            "Meter Type": "meter_type",
+            "Usage/Quantity": "usage_quantity",
+            "Cost ($)": "cost_usd",
+        })
+        meters["usage_quantity"] = pd.to_numeric(meters["usage_quantity"], errors="coerce")
+        meters["cost_usd"] = pd.to_numeric(meters["cost_usd"], errors="coerce")
+        meters["meter_type_key"] = meters["meter_type"].astype(str).apply(
+            lambda value: re.sub(r"[^a-z0-9]+", "_", value.lower()).strip("_")
+        )
+
+        usage = meters.pivot_table(
+            index="portfolio_manager_id",
+            columns="meter_type_key",
+            values="usage_quantity",
+            aggfunc="sum",
+        ).add_prefix("usage_").reset_index()
+        costs = meters.pivot_table(
+            index="portfolio_manager_id",
+            columns="meter_type_key",
+            values="cost_usd",
+            aggfunc="sum",
+        ).add_prefix("cost_").reset_index()
+        meter_counts = meters.pivot_table(
+            index="portfolio_manager_id",
+            columns="meter_type_key",
+            values="meter_type",
+            aggfunc="count",
+        ).add_prefix("meter_records_").reset_index()
+
+        df = (
+            props
+            .merge(usage, on="portfolio_manager_id", how="left")
+            .merge(costs, on="portfolio_manager_id", how="left")
+            .merge(meter_counts, on="portfolio_manager_id", how="left")
+        )
+        df["reporting_year"] = 2024
         _save("ewrb_energy", df, lm)
     except Exception as e:
         print(f"    WARNING: ewrb_energy failed ({e})")

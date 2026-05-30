@@ -1,0 +1,18 @@
+{
+  "features": [
+    "total_gfa_m2",
+    "EST_CONST_COST",
+    "structure_type_enc",
+    "work_enc",
+    "ASSEMBLY",
+    "INSTITUTIONAL",
+    "RESIDENTIAL",
+    "BUSINESS_AND_PERSONAL_SERVICES",
+    "MERCANTILE",
+    "INDUSTRIAL"
+  ],
+  "target": "log1p_est_jobs",
+  "statscan_jobs_per_1M_CAD": 7.0,
+  "mae": 0.0091,
+  "r2": 0.9933
+}

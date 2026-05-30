@@ -45,6 +45,43 @@ def list_formats(ckan_id: str) -> list[tuple[str, str]]:
             for r in pkg["resources"]]
 
 
+def _find_resource(pkg: dict, name: str, fmt: str | None = None) -> dict:
+    """Return a resource by exact name, optionally constrained by format."""
+    name_lower = name.lower()
+    fmt_lower = fmt.lower() if fmt else None
+    for res in pkg["resources"]:
+        if res.get("name", "").lower() == name_lower:
+            if fmt_lower is None or res.get("format", "").lower() == fmt_lower:
+                return res
+    raise ValueError(f"Resource {name!r} not found. Available: {[(r.get('format'), r.get('name')) for r in pkg['resources']]}")
+
+
+def _read_table_bytes(content: bytes, fmt: str, sheet_name: str | int | None = 0) -> pd.DataFrame:
+    """Read CSV/XLSX bytes into a DataFrame."""
+    fmt_lower = fmt.lower()
+    if fmt_lower == "xlsx":
+        return pd.read_excel(io.BytesIO(content), sheet_name=sheet_name)
+    return pd.read_csv(io.BytesIO(content), encoding="latin-1", on_bad_lines="skip", low_memory=False)
+
+
+def fetch_resource(
+    ckan_id: str,
+    resource_name: str,
+    *,
+    sheet_name: str | int | None = 0,
+    as_geo: bool = False,
+) -> tuple[gpd.GeoDataFrame | pd.DataFrame, str]:
+    """Download a specific CKAN resource by name."""
+    pkg = _package(ckan_id)
+    res = _find_resource(pkg, resource_name)
+    resp = requests.get(res["url"], timeout=300, verify=_SSL)
+    resp.raise_for_status()
+    fmt = res.get("format", "")
+    if as_geo:
+        return _read_geo_bytes(resp.content), _last_modified(pkg)
+    return _read_table_bytes(resp.content, fmt, sheet_name=sheet_name), _last_modified(pkg)
+
+
 def _read_geo_bytes(content: bytes) -> gpd.GeoDataFrame:
     """
     Try to parse raw bytes as a geodataframe.
@@ -116,11 +153,10 @@ def fetch(ckan_id: str, prefer: str = "geojson") -> tuple[gpd.GeoDataFrame | pd.
                 lm = _last_modified(pkg)
                 if is_geo:
                     return _read_geo_bytes(resp.content), lm
+                elif candidate == "xlsx":
+                    return pd.read_excel(io.BytesIO(resp.content)), lm
                 else:
-                    return (
-                        pd.read_csv(io.BytesIO(resp.content), encoding="latin-1", on_bad_lines="skip", low_memory=False),
-                        lm,
-                    )
+                    return _read_table_bytes(resp.content, candidate), lm
 
     raise ValueError(
         f"No {prefer!r} resource found for {ckan_id!r}. "

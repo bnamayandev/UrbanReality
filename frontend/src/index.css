@@ -1,0 +1,186 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=DM+Mono:wght@400;500&display=swap');
+
+/* ── Dark mode (Builder / Developer) — default ──────────────────────────── */
+:root {
+  --bg:        #0a0a0f;
+  --bg-2:      #0f0f18;
+  --bg-3:      #14141f;
+  --surface:   rgba(255,255,255,0.04);
+  --surface-2: rgba(255,255,255,0.07);
+  --border:    rgba(255,255,255,0.08);
+  --border-2:  rgba(255,255,255,0.14);
+  --text:      #e8e8e8;
+  --text-2:    #999;
+  --text-3:    #555;
+  --cyan:      #00d4ff;
+  --cyan-dim:  rgba(0,212,255,0.10);
+  --cyan-glow: rgba(0,212,255,0.20);
+  --orange:    #ff6b35;
+  --nv-green:  #76b900;
+  --score-low:  #4ade80;
+  --score-mid:  #facc15;
+  --score-high: #fb923c;
+  --score-crit: #f87171;
+  --panel-w:   420px;
+  --form-w:    300px;
+  --radius:    6px;
+  --font:      'Inter', system-ui, sans-serif;
+  --mono:      'DM Mono', monospace;
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html, body, #root {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  line-height: 1.5;
+  -webkit-font-smoothing: antialiased;
+}
+
+::-webkit-scrollbar { width: 4px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 2px; }
+
+h1 { font-size: 20px; font-weight: 600; letter-spacing: -0.02em; }
+h2 { font-size: 15px; font-weight: 600; }
+h3 { font-size: 13px; font-weight: 500; }
+p  { color: var(--text-2); }
+
+.label {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-2);
+}
+
+.tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  border: 1px solid;
+}
+.tag-cyan  { color: var(--cyan);     border-color: rgba(0,212,255,0.3);   background: var(--cyan-dim); }
+.tag-green { color: var(--nv-green); border-color: rgba(118,185,0,0.3);   background: rgba(118,185,0,0.08); }
+.tag-dim   { color: var(--text-2);   border-color: var(--border);         background: var(--surface); }
+.tag-orange{ color: var(--orange);   border-color: rgba(255,107,53,0.3);  background: rgba(255,107,53,0.08); }
+
+select, input[type="text"], input[type="number"], textarea {
+  width: 100%;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  padding: 8px 10px;
+  outline: none;
+  transition: border-color 0.15s;
+  appearance: none;
+}
+select:focus, input:focus, textarea:focus { border-color: var(--cyan); }
+select option { background: var(--bg-3); }
+input[type="range"] { width: 100%; accent-color: var(--cyan); cursor: pointer; background: transparent; }
+
+.btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 9px 16px;
+  border-radius: var(--radius);
+  font-family: var(--font);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  border: none;
+  transition: opacity 0.15s, background 0.15s;
+  white-space: nowrap;
+}
+.btn:disabled { opacity: 0.35; cursor: not-allowed; }
+.btn-primary { background: var(--cyan); color: #000; }
+.btn-primary:hover:not(:disabled) { opacity: 0.85; }
+.btn-ghost   { background: var(--surface-2); color: var(--text); border: 1px solid var(--border); }
+.btn-ghost:hover:not(:disabled)   { border-color: var(--border-2); background: var(--surface); }
+.btn-danger  { background: rgba(248,113,113,0.12); color: #f87171; border: 1px solid rgba(248,113,113,0.2); }
+
+.divider { height: 1px; background: var(--border); flex-shrink: 0; }
+
+/* Mapbox overrides */
+.mapboxgl-ctrl-logo,
+.mapboxgl-ctrl-attrib { display: none !important; }
+.mapboxgl-ctrl-group {
+  background: var(--bg-3) !important;
+  border: 1px solid var(--border) !important;
+  border-radius: var(--radius) !important;
+}
+.mapboxgl-ctrl-group button { color: var(--text-2) !important; }
+.mapboxgl-ctrl-group button:hover { background: var(--surface-2) !important; }
+.mapboxgl-popup-content {
+  background: var(--bg-3);
+  color: var(--text);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  font-family: var(--font);
+  padding: 10px 14px;
+  font-size: 12px;
+  box-shadow: none;
+}
+.mapboxgl-popup-tip { display: none; }
+
+/* ── Light mode (Citizen / Public) — applied via data-mode="citizen" on <html> ── */
+[data-mode="citizen"] {
+  --bg:        #f5f6fa;
+  --bg-2:      #ffffff;
+  --bg-3:      #eef0f6;
+  --surface:   rgba(0,0,0,0.03);
+  --surface-2: rgba(0,0,0,0.06);
+  --border:    rgba(0,0,0,0.10);
+  --border-2:  rgba(0,0,0,0.18);
+  --text:      #1a1a2e;
+  --text-2:    #555870;
+  --text-3:    #9da3b4;
+  --cyan:      #0077cc;
+  --cyan-dim:  rgba(0,119,204,0.10);
+  --cyan-glow: rgba(0,119,204,0.20);
+  --nv-green:  #4a8f00;
+  color-scheme: light;
+}
+
+[data-mode="citizen"] body,
+[data-mode="citizen"] #root {
+  background: var(--bg);
+}
+
+[data-mode="citizen"] select,
+[data-mode="citizen"] input[type="text"],
+[data-mode="citizen"] input[type="number"],
+[data-mode="citizen"] textarea {
+  background: var(--bg-2);
+  color: var(--text);
+}
+
+[data-mode="citizen"] select option {
+  background: var(--bg-2);
+  color: var(--text);
+}
+
+[data-mode="citizen"] .mapboxgl-popup-content {
+  background: var(--bg-2);
+  color: var(--text);
+}
+
+[data-mode="citizen"] .btn-primary {
+  background: var(--cyan);
+  color: #fff;
+}
