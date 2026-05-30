@@ -13,17 +13,16 @@
  *   buildingId: 42,
  *   requestIndex: 1,
  *   naturalLanguage: "A 24-floor residential high-rise tower...",
+ *   agentPrompt: "You are an architectural visualization agent. Generate a
+ *                 hyper-realistic architectural render of a building on a
+ *                 completely white background... The building is: A 24-floor
+ *                 residential high-rise tower with a concrete and glass curtain
+ *                 wall facade, 2,000m² footprint, approximately 84 metres tall.",
  *   spec: { type, floors, footprint_m2, material, units_per_floor, lat, lng, name },
  *   renderParams: {
- *     height_m: 84,
- *     floors: 24,
- *     footprint_m2: 2000,
- *     type: "residential (high-rise)",
- *     material: "glass",
- *     totalUnits: 288,
- *     gfa_m2: 48000,
- *     lat: 43.6532,
- *     lng: -79.3832,
+ *     height_m: 84, floors: 24, footprint_m2: 2000,
+ *     type: "residential (high-rise)", material: "glass",
+ *     totalUnits: 288, gfa_m2: 48000, lat: 43.6532, lng: -79.3832,
  *   }
  * }
  *
@@ -33,11 +32,17 @@
  *   buildingId: 43,
  *   requestIndex: 2,
  *   naturalLanguage: "Modified 1 property: added 1 floor (now 25 floors, ~87m tall).",
+ *   agentPrompt: "You are an architectural visualization agent... Keep the previous
+ *                 styling exactly as described: A 24-floor residential high-rise
+ *                 tower with a concrete and glass curtain wall facade...
+ *                 Apply the following modifications to the design: Increase the
+ *                 building height by 1 floor — now 25 floors total, approximately
+ *                 87 metres tall. Updated full specification: A 25-floor...",
  *   spec: { ... },           // full new spec
- *   previousSpec: { ... },   // previous spec for 3D engine to diff if needed
+ *   previousSpec: { ... },   // full previous spec
  *   diff: {
  *     fields: [{ field: 'floors', from: 24, to: 25, delta: 1, deltaText: '+1' }],
- *     naturalLanguage: "...",
+ *     naturalLanguage: "Modified 1 property: added 1 floor...",
  *   },
  *   renderParams: { height_m: 87, floors: 25, ... }
  * }
@@ -57,7 +62,7 @@
  */
 
 import { useRef, useCallback } from 'react'
-import { describeBuilding, diffBuildings } from '../lib/buildingNL'
+import { describeBuilding, diffBuildings, buildAgentPrompt } from '../lib/buildingNL'
 
 function toRenderParams(spec) {
   return {
@@ -74,8 +79,9 @@ function toRenderParams(spec) {
 }
 
 export function useBuilding3D(onRenderPayload) {
-  const previousSpecRef  = useRef(null)
-  const requestIndexRef  = useRef(0)
+  const previousSpecRef        = useRef(null)
+  const previousAgentPromptRef = useRef(null)   // carries prompt context into update requests
+  const requestIndexRef        = useRef(0)
 
   /**
    * Call this every time a building is submitted (created or updated).
@@ -92,7 +98,7 @@ export function useBuilding3D(onRenderPayload) {
     let payload
 
     if (!isUpdate) {
-      payload = {
+      const partialPayload = {
         isUpdate: false,
         buildingId,
         requestIndex,
@@ -100,9 +106,12 @@ export function useBuilding3D(onRenderPayload) {
         spec,
         renderParams,
       }
+      // Build agent prompt — no previous context on first request
+      const agentPrompt = buildAgentPrompt(partialPayload, null)
+      payload = { ...partialPayload, agentPrompt }
     } else {
       const diff = diffBuildings(previousSpec, spec)
-      payload = {
+      const partialPayload = {
         isUpdate: true,
         buildingId,
         requestIndex,
@@ -112,17 +121,22 @@ export function useBuilding3D(onRenderPayload) {
         diff,
         renderParams,
       }
+      // Build agent prompt — passes previous prompt so update inherits styling context
+      const agentPrompt = buildAgentPrompt(partialPayload, previousAgentPromptRef.current)
+      payload = { ...partialPayload, agentPrompt }
     }
 
-    previousSpecRef.current = spec
+    // Store for next request's context
+    previousSpecRef.current        = spec
+    previousAgentPromptRef.current = payload.agentPrompt
 
     // Log for debugging during development
     console.group(`[3D Render Payload] Request #${requestIndex} — ${isUpdate ? 'UPDATE' : 'CREATE'}`)
     console.log('isUpdate:', payload.isUpdate)
     console.log('naturalLanguage:', payload.naturalLanguage)
+    console.log('agentPrompt:', payload.agentPrompt)
     console.log('renderParams:', payload.renderParams)
     if (isUpdate) console.log('diff:', payload.diff)
-    console.log('Full payload:', payload)
     console.groupEnd()
 
     onRenderPayload?.(payload)
@@ -130,8 +144,9 @@ export function useBuilding3D(onRenderPayload) {
   }, [onRenderPayload])
 
   const reset = useCallback(() => {
-    previousSpecRef.current = null
-    requestIndexRef.current = 0
+    previousSpecRef.current        = null
+    previousAgentPromptRef.current = null
+    requestIndexRef.current        = 0
   }, [])
 
   return { emit, reset }

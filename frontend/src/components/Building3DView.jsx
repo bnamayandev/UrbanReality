@@ -76,7 +76,7 @@
  * ═══════════════════════════════════════════════════════════════════════════
  */
 
-import { useEffect, useRef } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Box, ArrowUp, RefreshCw } from 'lucide-react'
 
 // ── Material → color mapping for the placeholder ──────────────────────────
@@ -154,8 +154,9 @@ function PlaceholderBuilding({ spec, isUpdate }) {
 }
 
 export function Building3DView({ renderPayload, style }) {
-  const prevPayloadRef = useRef(null)
-  const isUpdate = renderPayload?.isUpdate
+  const prevPayloadRef  = useRef(null)
+  const [showPrompt, setShowPrompt] = useState(false)
+  const isUpdate    = renderPayload?.isUpdate
   const justUpdated = isUpdate && renderPayload !== prevPayloadRef.current
 
   useEffect(() => {
@@ -163,83 +164,166 @@ export function Building3DView({ renderPayload, style }) {
   }, [renderPayload])
 
   return (
-    <div style={{
-      position: 'relative',
-      background: 'var(--bg-3)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius)',
-      overflow: 'hidden',
-      ...style,
-    }}>
-      {/* ── TEAMMATE HANDOFF ZONE ──────────────────────────────────────────
-          Replace everything inside this div with your Three.js canvas.
-          The renderPayload prop has everything your renderer needs.
-          See the JSDoc comment at the top of this file for the full spec.
-      ─────────────────────────────────────────────────────────────────── */}
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px', ...style }}>
 
-      {!renderPayload ? (
-        /* Empty state */
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '8px', color: 'var(--text-3)', padding: '20px' }}>
-          <Box size={28} strokeWidth={1} />
-          <span style={{ fontSize: '11px' }}>3D preview will appear here</span>
-        </div>
-      ) : (
-        <PlaceholderBuilding spec={renderPayload.spec} isUpdate={isUpdate} />
-      )}
-
-      {/* ── Status badge ────────────────────────────────────────────────── */}
+      {/* ── 3D viewport ───────────────────────────────────────────────────── */}
       <div style={{
-        position: 'absolute', top: 8, left: 8,
-        display: 'flex', alignItems: 'center', gap: '4px',
-        background: 'rgba(0,0,0,0.6)',
+        position: 'relative',
+        background: 'var(--bg-3)',
         border: '1px solid var(--border)',
-        borderRadius: '3px',
-        padding: '2px 7px',
-        fontSize: '10px',
-        color: 'var(--text-2)',
+        borderRadius: 'var(--radius)',
+        overflow: 'hidden',
+        flex: 1,
+        minHeight: 160,
       }}>
-        <Box size={9} />
-        <span>3D View</span>
+        {/* ── TEAMMATE HANDOFF ZONE ────────────────────────────────────────
+            Replace the content below with your Three.js / WebGL canvas.
+            renderPayload.agentPrompt  → send this to your image-gen model
+            renderPayload.renderParams → use for geometry (height, floors, etc.)
+            renderPayload.isUpdate     → true = animate transition, false = fresh build
+            renderPayload.diff         → exact field-level changes when isUpdate=true
+        ─────────────────────────────────────────────────────────────────── */}
+
+        {!renderPayload ? (
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: '8px', color: 'var(--text-3)', padding: '20px' }}>
+            <Box size={28} strokeWidth={1} />
+            <span style={{ fontSize: '11px' }}>3D preview will appear here</span>
+          </div>
+        ) : (
+          <PlaceholderBuilding spec={renderPayload.spec} isUpdate={isUpdate} />
+        )}
+
+        {/* Status badge */}
+        <div style={{
+          position: 'absolute', top: 8, left: 8,
+          display: 'flex', alignItems: 'center', gap: '4px',
+          background: 'rgba(0,0,0,0.7)', border: '1px solid var(--border)',
+          borderRadius: '3px', padding: '2px 7px', fontSize: '10px', color: 'var(--text-2)',
+        }}>
+          <Box size={9} />
+          <span>3D View</span>
+          {renderPayload && (
+            <>
+              <span style={{ color: 'var(--text-3)' }}>·</span>
+              <span style={{ color: isUpdate ? 'var(--score-mid)' : 'var(--cyan)' }}>
+                {isUpdate ? 'Updated' : 'New build'}
+              </span>
+            </>
+          )}
+        </div>
+
+        {/* Request counter */}
         {renderPayload && (
-          <>
-            <span style={{ color: 'var(--text-3)' }}>·</span>
-            <span style={{ color: isUpdate ? 'var(--score-mid)' : 'var(--cyan)' }}>
-              {isUpdate ? 'Updated' : 'New build'}
-            </span>
-          </>
+          <div style={{
+            position: 'absolute', top: 8, right: 8,
+            background: 'rgba(0,0,0,0.7)', border: '1px solid var(--border)',
+            borderRadius: '3px', padding: '2px 7px', fontSize: '10px',
+            color: 'var(--text-3)', fontFamily: 'var(--mono)',
+          }}>
+            req #{renderPayload.requestIndex}
+          </div>
+        )}
+
+        {/* Update delta badge */}
+        {isUpdate && renderPayload.diff?.fields?.length > 0 && (
+          <div style={{
+            position: 'absolute', bottom: 8, right: 8,
+            background: 'rgba(250,204,21,0.12)', border: '1px solid rgba(250,204,21,0.25)',
+            borderRadius: '3px', padding: '3px 8px', fontSize: '10px',
+            color: 'var(--score-mid)', display: 'flex', alignItems: 'center', gap: '4px',
+          }}>
+            <RefreshCw size={9} />
+            {renderPayload.diff.fields.map(f => f.deltaText || f.label).join(', ')}
+          </div>
         )}
       </div>
 
-      {/* ── Update indicator ─────────────────────────────────────────────── */}
-      {justUpdated && isUpdate && renderPayload.diff?.fields?.length > 0 && (
+      {/* ── Agent prompt panel ────────────────────────────────────────────── */}
+      {renderPayload?.agentPrompt && (
         <div style={{
-          position: 'absolute', bottom: 8, right: 8,
-          background: 'rgba(250,204,21,0.12)',
-          border: '1px solid rgba(250,204,21,0.25)',
-          borderRadius: '3px',
-          padding: '3px 8px',
-          fontSize: '10px',
-          color: 'var(--score-mid)',
-          display: 'flex', alignItems: 'center', gap: '4px',
+          background: 'var(--surface)',
+          border: `1px solid ${isUpdate ? 'rgba(250,204,21,0.2)' : 'rgba(0,212,255,0.2)'}`,
+          borderRadius: 'var(--radius)',
+          overflow: 'hidden',
         }}>
-          <RefreshCw size={9} />
-          {renderPayload.diff.fields.map(f => f.deltaText || f.label).join(', ')}
-        </div>
-      )}
+          {/* Header row */}
+          <button
+            onClick={() => setShowPrompt(s => !s)}
+            style={{
+              width: '100%', background: 'none', border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: '8px',
+              padding: '7px 10px', color: 'var(--text-2)',
+            }}
+          >
+            <div style={{
+              width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+              background: isUpdate ? 'var(--score-mid)' : 'var(--cyan)',
+              boxShadow: `0 0 5px ${isUpdate ? 'var(--score-mid)' : 'var(--cyan)'}`,
+            }} />
+            <span style={{ fontSize: '10px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', flex: 1, textAlign: 'left' }}>
+              {isUpdate ? 'Update prompt' : 'Agent prompt'}
+              <span style={{ fontWeight: 400, color: 'var(--text-3)', marginLeft: 6 }}>
+                — send this to your image-gen model
+              </span>
+            </span>
+            <span style={{ fontSize: '9px', color: 'var(--text-3)' }}>
+              {showPrompt ? 'hide' : 'show'}
+            </span>
+          </button>
 
-      {/* ── Request counter ──────────────────────────────────────────────── */}
-      {renderPayload && (
-        <div style={{
-          position: 'absolute', top: 8, right: 8,
-          background: 'rgba(0,0,0,0.6)',
-          border: '1px solid var(--border)',
-          borderRadius: '3px',
-          padding: '2px 7px',
-          fontSize: '10px',
-          color: 'var(--text-3)',
-          fontFamily: 'var(--mono)',
-        }}>
-          req #{renderPayload.requestIndex}
+          {showPrompt && (
+            <div style={{
+              padding: '0 10px 10px',
+              borderTop: '1px solid var(--border)',
+            }}>
+              {/* The ready-to-send prompt string */}
+              <div style={{
+                fontFamily: 'var(--mono)',
+                fontSize: '10px',
+                color: 'var(--text-2)',
+                lineHeight: 1.7,
+                padding: '10px',
+                background: 'var(--bg-3)',
+                borderRadius: '4px',
+                marginTop: '8px',
+                whiteSpace: 'pre-wrap',
+                wordBreak: 'break-word',
+              }}>
+                {renderPayload.agentPrompt}
+              </div>
+
+              {/* Diff breakdown for update requests */}
+              {isUpdate && renderPayload.diff?.fields?.length > 0 && (
+                <div style={{ marginTop: 8 }}>
+                  <div style={{ fontSize: '9px', color: 'var(--text-3)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 4 }}>
+                    Changes injected into prompt
+                  </div>
+                  {renderPayload.diff.fields.map(f => (
+                    <div key={f.field} style={{
+                      display: 'flex', gap: '8px', fontSize: '11px',
+                      padding: '3px 0', borderBottom: '1px solid var(--border)',
+                      alignItems: 'center',
+                    }}>
+                      <span style={{ fontFamily: 'var(--mono)', color: 'var(--text-3)', width: 80, flexShrink: 0 }}>{f.field}</span>
+                      <span style={{ fontFamily: 'var(--mono)', color: 'var(--score-crit)' }}>{String(f.from)}</span>
+                      <span style={{ color: 'var(--text-3)' }}>→</span>
+                      <span style={{ fontFamily: 'var(--mono)', color: 'var(--score-low)' }}>{String(f.to)}</span>
+                      {f.deltaText && (
+                        <span style={{ marginLeft: 'auto', fontFamily: 'var(--mono)', fontSize: '10px',
+                          color: f.delta > 0 ? 'var(--score-low)' : 'var(--score-crit)',
+                          background: f.delta > 0 ? 'rgba(74,222,128,0.1)' : 'rgba(248,113,113,0.1)',
+                          border: `1px solid ${f.delta > 0 ? 'rgba(74,222,128,0.2)' : 'rgba(248,113,113,0.2)'}`,
+                          borderRadius: '3px', padding: '1px 5px',
+                        }}>
+                          {f.deltaText}
+                        </span>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
         </div>
       )}
     </div>
