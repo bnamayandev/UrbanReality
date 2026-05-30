@@ -1,102 +1,132 @@
 # UrbanForge — Session Context
 > Resume from any device. Read this before asking Claude anything.
+> Last updated: 2026-05-30
 
 ---
 
 ## What this project is
 
-**UrbanForge** — NVIDIA Hackathon 2026 (Toronto track). 6-person team, 36-hour build.
+**UrbanForge** — NVIDIA Hackathon 2026 (Toronto, Urban Operations track). 6-person team, 36-hour build.
 
-AI-powered urban development intelligence platform: place a proposed building anywhere on a 3D Toronto map, get instant NeMoTron-powered impact analysis (environmental, traffic, economic, infrastructure, housing).
+AI-powered urban development intelligence: place a proposed building anywhere on a Toronto 3D map, get instant AI impact analysis (environmental, traffic, economic, infrastructure, housing) powered by Nemotron running locally on a DGX Spark GPU.
 
-Full blueprint is in `project-blueprint.html` — open it in a browser for the complete spec.
-
----
-
-## Hardware
-
-- **DGX Spark** is set up and running
-- Monitor is connected and up
-- Qwen3 is already running (see `~/run_quen3.6.sh` on the Spark)
-- Folder structure on Spark: `llama.cpp/`, `unsloth/`, `snap/`, `venv/`, `npm/`, `openclaw/`, `openclaw backup/`, `ssh/`, `run_gemma4.sh`, `run_openclaw.sh`, `run_quen3.6.sh`
-- No Docker needed (not a priority for this hackathon)
-- OpenClaw / NemoClaw is available — points OpenClaw at local NIM endpoint for team coding assistance
+Full spec: open `project-blueprint.html` in a browser.
 
 ---
 
-## Team roles (from blueprint)
+## Team
 
-| # | Role | Person | Status |
-|---|------|---------|--------|
-| 1 | Data Engineer | Omar | Branch: `omar/data` — pipeline done, not merged yet |
-| 2 | 3D Rendering / Maps | Rehan (you) | In progress — see below |
-| 3 | AI / ML Engineer | TBD | Not started |
-| 4 | Backend Engineer | TBD | Skeleton done, has blockers — see `BACKEND_ISSUES.txt` |
-| 5 | Frontend / UX | TBD | Not started |
-| 6 | Integration Lead | TBD | Not started |
-
----
-
-## Current codebase state
-
-### Backend (`backend/`) — DONE (skeleton), HAS BLOCKERS
-Full FastAPI skeleton was pushed in the last commit. Read `BACKEND_ISSUES.txt` for the
-exact list of what's broken. Short version:
-- Port conflict: NeMoTron URL defaults to same port as FastAPI
-- No `.env` file (only `.env.example`)
-- Spatial tables don't exist in Postgres yet (waiting on omar/data merge)
-- Impact endpoint is blocking (no streaming/async job pattern)
-- Missing: DELETE /building/{id}, startup script
-
-**To wire the model server:** The backend agents use an OpenAI-compatible endpoint.
-If Qwen is already serving on a port via llama.cpp, just point `NEMORON_URL` at that
-and change the model name string in `backend/agents/impact_agent.py` and
-`backend/agents/chat_agent.py`. No new installs needed.
-
-NVIDIA Build cloud fallback: https://build.nvidia.com/models
-- Set `NEMORON_URL=https://integrate.api.nvidia.com/v1`
-- Add `NGC_API_KEY` to `.env`
-- Add `headers={"Authorization": f"Bearer {os.getenv('NGC_API_KEY')}"}` to the httpx calls
-
-### Data (`omar/data` branch) — DONE, NOT MERGED
-Complete Toronto Open Data download pipeline:
-- `ml/data_pipeline.py` — downloads all datasets to `data/*.parquet`
-- `ml/fetch.py` — CKAN API helpers
-- `data/data.md` — full dataset guide with bucket breakdown
-- `data/coefficients/` — ITE trip rates, StatsCan I-O multipliers CSVs
-
-**Action needed:** Merge `omar/data` into `main`, then write a `load_spatial.py`
-that reads the parquets into PostGIS tables.
-
-### Rendering (Role 2 — Rehan's work) — IN PROGRESS
-- `src/components/BuildingPreview.jsx` — Three.js React component
-  - Isolated 3D building render on dark background (no map)
-  - Responds to: floors, footprintM2, type (5 types), material (4 materials)
-  - Procedural window texture (lit/unlit grid, night-city look)
-  - Podium for Mixed-Use / Retail types
-  - `spin` prop for rotation animation
-  - `captureImage()` method returns PNG data URL (for AI context or thumbnails)
-  - `onReady` callback fires after first frame
-- `building-preview-demo.html` — standalone demo (no bundler), open in browser to test
-
-**Next rendering tasks (from blueprint Hr 4–10):**
-- Mapbox GL JS + react-map-gl setup with Toronto bounds + dark style
-- 3D building extrusion via `fill-extrusion` layer on the real map
-- Click-to-place interaction on the map
-
-### Frontend — NOT STARTED
-React + Vite project not initialized yet.
+| Person | Role |
+|--------|------|
+| Omar | Data Engineer — `omar/data` branch |
+| Ben + Rehan | 3D Rendering / Maps — `rehan-rendering` branch |
+| Rehan | Frontend / UX |
+| Ahmed | AI / ML Engineer |
+| Yusuf | Integration Lead + AI / ML |
+| Wali | Backend Engineer |
 
 ---
 
-## Key decisions made
+## Hardware — DGX Spark
 
-- **Model server:** Use whatever is already running on the Spark (Qwen via llama.cpp).
-  The backend is model-agnostic — just update `NEMORON_URL` and the model name string.
-- **No Docker** for the hackathon.
-- **Claude Code on DGX Spark:** `npm install -g @anthropic-ai/claude-code` — npm is
-  already there. Backend engineer can run Claude directly on the server.
-- **Tailscale** was installed on Rehan's Mac for networking.
+- **SSH:** `ssh asus@100.93.45.108` (user: `asus`, not `ahmed`)
+- **GPU:** NVIDIA GB10 Grace Blackwell Superchip, CUDA 13.0
+- **Repo on GPU:** `~/UrbanForge/`
+- **Venv:** `~/venv/` — always `source ~/venv/bin/activate` first
+
+### Models already downloaded (via Ollama)
+| Model | Size | Use |
+|-------|------|-----|
+| `nemotron-3-super:latest` | 86 GB | Primary — best quality, slow (~45s/response) |
+| `nemotron3:33b` | 27 GB | Faster alternative for demo |
+| `qwen3.6:35b` | 23 GB | Backup — already tested working |
+| `gemma4:26b` | 17 GB | Backup |
+
+**Qwen** also runs via llama.cpp (port 8000): `./run_qwen3.6.sh` (chmod +x first)
+
+### Services
+- **Ollama** (Nemotron): `ollama serve` → port 11434
+- **FastAPI backend**: `uvicorn main:app --host 0.0.0.0 --port 8001 --reload`
+- Run both in tmux: `tmux new -s <name>`, detach with Ctrl+B then D
+
+---
+
+## Current state — what works
+
+### Backend (`~/UrbanForge/backend/`) — ALMOST RUNNING
+All Python deps installed. One final command before `uvicorn` starts:
+
+```bash
+sudo -u postgres psql -d urbanforge -c "CREATE EXTENSION IF NOT EXISTS postgis;"
+```
+
+Then:
+```bash
+cd ~/UrbanForge/backend
+source ~/venv/bin/activate
+uvicorn main:app --host 0.0.0.0 --port 8001 --reload
+```
+
+Verify: `curl http://localhost:8001/health`
+
+**Packages installed in venv:** fastapi, uvicorn, sqlalchemy, psycopg2-binary, geoalchemy2,
+shapely, pydantic, pydantic-settings, python-dotenv, httpx, websockets, geopandas, pyarrow,
+langgraph, langchain, langchain-openai, openai, pillow, scikit-learn, xgboost
+
+**`.env` file:** already created at `~/UrbanForge/backend/.env`
+- `MODEL_URL=http://localhost:11434/v1`
+- `MODEL_NAME=nemotron-3-super:latest` (change to `nemotron3:33b` for faster demo)
+- `DATABASE_URL=postgresql://postgres:postgres@localhost/urbanforge`
+- `API_PORT=8001`
+
+### Intelligence layer — CONFIRMED WORKING
+Nemotron responds correctly via Ollama at `localhost:11434`. Tested with curl.
+The model is a **thinking model** — it reasons internally before answering.
+`max_tokens=1024` is set in the agents (enough for think + answer).
+`max_tokens=150` is too small — the thinking alone uses that up.
+
+### Database — NEEDS POSTGIS EXTENSION (see above)
+PostgreSQL 16 installed, `urbanforge` DB created, `postgres` user password = `postgres`.
+PostGIS installed but extension not yet enabled in the DB.
+
+### AI agents — FIXED
+Both `impact_agent.py` and `chat_agent.py` now use `MODEL_URL` + `MODEL_NAME` from `.env`
+and use the `openai` Python client (not raw httpx).
+
+### XGBoost models — LOADING
+Three pre-trained models load on startup:
+- `energy_model.json` — predicts annual kWh from building specs
+- `traffic_model.json` — predicts daily vehicle trips
+- `economic_model.json` — predicts construction jobs
+
+These run instantly (no GPU needed) and supplement Nemotron's narrative analysis.
+
+### Data pipeline — READY, NOT YET RUN
+`ml/data_pipeline.py` downloads Toronto Open Data → `data/*.parquet`.
+Omar needs to run it and then load into PostGIS.
+Until then, the backend handles empty spatial context gracefully (falls back to XGBoost + rules).
+
+---
+
+## How the intelligence layer works
+
+```
+User places building (lat, lng, floors, type, material)
+        ↓
+FastAPI: spatial.py queries PostGIS for everything within 500m
+  → traffic volumes, street trees, TTC stops, businesses, zoning
+        ↓
+Context + building specs → structured prompt → Nemotron (localhost:11434)
+        ↓
+Nemotron outputs JSON: { environmental, traffic, economic, infrastructure, housing }
+  each with score (0-100) + 2-sentence description
+        ↓
+XGBoost scores blend in (override Nemotron where more accurate)
+        ↓
+Frontend renders impact dashboard
+```
+
+The model is NOT generic once Omar's data loads — it sees real Toronto numbers.
 
 ---
 
@@ -104,52 +134,80 @@ React + Vite project not initialized yet.
 
 ```
 Nvidia-Hackathon/
-├── backend/                  # FastAPI server (Role 4)
+├── backend/                    # FastAPI server (Wali)
 │   ├── agents/
-│   │   ├── impact_agent.py   # NeMoTron impact analysis
-│   │   └── chat_agent.py     # Citizen chatbot
+│   │   ├── impact_agent.py     # Nemotron impact analysis
+│   │   ├── chat_agent.py       # Citizen chatbot
+│   │   └── building_image_agent.py  # LangGraph 2D image generator
+│   ├── rendering/
+│   │   └── building_renderer.py     # Pillow deterministic renderer
 │   ├── routers/
-│   │   ├── buildings.py      # POST/GET /building(s), GET /impact
-│   │   └── chat.py           # WebSocket /chat/{session_id}
+│   │   ├── buildings.py        # POST/GET /building(s), GET /impact
+│   │   ├── chat.py             # WebSocket /chat/{session_id}
+│   │   └── generate.py         # POST /buildings/generate-image
 │   ├── main.py
-│   ├── models.py             # SQLAlchemy ORM (Building, Impact, ChatSession)
-│   ├── schemas.py            # Pydantic in/out schemas
-│   ├── spatial.py            # PostGIS radius queries
-│   ├── database.py           # DB connection + session
-│   ├── requirements.txt
+│   ├── models.py               # SQLAlchemy ORM
+│   ├── schemas.py              # Pydantic schemas
+│   ├── spatial.py              # PostGIS radius queries
+│   ├── database.py
+│   ├── xgb_models.py           # XGBoost inference
+│   ├── requirements.txt        # Full dep list
 │   └── .env.example
-├── src/
-│   └── components/
-│       └── BuildingPreview.jsx   # 3D isolated building renderer (Role 2)
-├── building-preview-demo.html    # Standalone test for BuildingPreview
-├── BACKEND_ISSUES.txt            # Blockers for the backend engineer
-├── CONTEXT.md                    # This file
-└── project-blueprint.html        # Full project spec — read this
+├── ml/
+│   ├── data_pipeline.py        # Downloads Toronto Open Data → parquet
+│   ├── train_models.py         # Trains XGBoost models
+│   ├── models/                 # Pre-trained XGBoost JSON files
+│   └── fetch.py
+├── data/
+│   ├── coefficients/           # ITE trip rates, StatsCan I-O multipliers
+│   └── data.md                 # Dataset guide
+├── src/components/
+│   └── BuildingPreview.jsx     # Three.js 3D building component (Rehan)
+├── BACKEND_ISSUES.txt          # Setup guide for Wali
+├── CONTEXT.md                  # This file
+└── project-blueprint.html      # Full interactive spec — open in browser
 ```
 
 ---
 
-## Immediate next steps by role
+## API endpoints
 
-**Rehan (Rendering):**
-1. Init React + Vite project: `npm create vite@latest frontend -- --template react`
-2. Install deps: `npm install mapbox-gl react-map-gl three`
-3. Set up Mapbox map component with Toronto bounds + dark style
-4. Wire `BuildingPreview` into the Builder sidebar
-5. Add `fill-extrusion` layer for placing the building on the real map
+| Method | Endpoint | What it does |
+|--------|----------|--------------|
+| POST | `/building` | Create building, returns `{id, ...}` |
+| GET | `/buildings` | List all buildings |
+| GET | `/building/{id}/impact` | Run or return cached AI impact analysis |
+| WS | `/chat/{session_id}` | WebSocket chat `{message, building_id}` |
+| POST | `/buildings/generate-image` | Generate 2D building image from text |
+| GET | `/health` | Server health check |
 
-**Backend engineer:**
-1. Read `BACKEND_ISSUES.txt`
-2. `cp backend/.env.example backend/.env` and fill in values
-3. Fix port conflict (NEMORON_URL → 8001)
-4. Run `cat ~/run_quen3.6.sh` on the Spark — use that endpoint
-5. Add `DELETE /building/{id}` and startup script
+Backend accessible at: `http://100.93.45.108:8001`
 
-**Data (Omar):**
-1. Merge `omar/data` into `main`
-2. Write `load_spatial.py` to push parquets → PostGIS tables
+---
 
-**AI/ML:**
-1. Confirm model server endpoint + model name
-2. Test impact agent prompt with real spatial data
-3. Tune prompts for consistent JSON output
+## Immediate next steps by person
+
+**Wali (Backend):**
+1. `sudo -u postgres psql -d urbanforge -c "CREATE EXTENSION IF NOT EXISTS postgis;"`
+2. Make sure ollama is serving: `curl -s http://localhost:11434/v1/models`
+3. `cd ~/UrbanForge/backend && uvicorn main:app --host 0.0.0.0 --port 8001 --reload`
+4. Test: `curl http://localhost:8001/health`
+
+**Omar (Data):**
+1. `cd ~/UrbanForge && source ~/venv/bin/activate`
+2. `python ml/data_pipeline.py` — downloads all Toronto Open Data to `data/`
+3. Write `ml/load_spatial.py` to push parquets → PostGIS tables (the spatial queries in `spatial.py` expect these)
+4. Merge `omar/data` into main
+
+**Rehan (Rendering + Frontend):**
+1. Init Vite React app: `npm create vite@latest frontend -- --template react`
+2. `npm install mapbox-gl react-map-gl three`
+3. Set up Mapbox map with Toronto bounds, dark style
+4. Wire `BuildingPreview.jsx` into the builder sidebar
+5. Add `fill-extrusion` layer for 3D building placement
+
+**Ahmed + Yusuf (AI/ML):**
+- Backend is almost running — once Wali has it up, test the full pipeline:
+  `POST /building` then `GET /building/1/impact`
+- Tune Nemotron prompts in `backend/agents/impact_agent.py` for demo quality
+- Consider switching to `nemotron3:33b` for faster demo responses
