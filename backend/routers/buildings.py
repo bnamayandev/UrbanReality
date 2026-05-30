@@ -218,14 +218,20 @@ async def get_impact(building_id: int, db: Session = Depends(get_db)):
         result = await _run_nemotron(spec, spatial)
         # XGBoost scores are more reliable — override NeMoTron where available.
         if xgb_energy:
-            result["environmental"]["score"] = xgb_energy["score"]
-            result["environmental"]["description"] = xgb_energy["description"]
+            result["environmental"]["score"]             = xgb_energy["score"]
+            result["environmental"]["description"]       = xgb_energy["description"]
+            result["environmental"]["annual_kwh"]        = xgb_energy.get("annual_kwh")
+            result["environmental"]["intensity_kwh_per_m2"] = xgb_energy.get("intensity_kwh_per_m2")
         if xgb_traffic:
-            result["traffic"]["score"] = xgb_traffic["score"]
-            result["traffic"]["description"] = xgb_traffic["description"]
+            result["traffic"]["score"]            = xgb_traffic["score"]
+            result["traffic"]["description"]      = xgb_traffic["description"]
+            result["traffic"]["transit_tier"]     = xgb_traffic.get("transit_tier")
+            result["traffic"]["daily_trips"]      = xgb_traffic.get("daily_trips")
+            result["traffic"]["daily_trips_base"] = xgb_traffic.get("daily_trips_base")
         if xgb_economic:
-            result["economic"]["score"] = xgb_economic["score"]
-            result["economic"]["description"] = xgb_economic["description"]
+            result["economic"]["score"]             = xgb_economic["score"]
+            result["economic"]["description"]       = xgb_economic["description"]
+            result["economic"]["construction_jobs"] = xgb_economic.get("construction_jobs")
     except Exception:
         fallback = _fallback_impact(spec)
         result = {
@@ -234,12 +240,16 @@ async def get_impact(building_id: int, db: Session = Depends(get_db)):
                 "description": xgb_energy["description"] if xgb_energy else fallback["environmental"]["description"],
             },
             "traffic": {
-                "score": xgb_traffic["score"] if xgb_traffic else fallback["traffic"]["score"],
-                "description": xgb_traffic["description"] if xgb_traffic else fallback["traffic"]["description"],
+                "score":            xgb_traffic["score"]       if xgb_traffic else fallback["traffic"]["score"],
+                "description":      xgb_traffic["description"] if xgb_traffic else fallback["traffic"]["description"],
+                "transit_tier":     xgb_traffic.get("transit_tier")     if xgb_traffic else None,
+                "daily_trips":      xgb_traffic.get("daily_trips")      if xgb_traffic else None,
+                "daily_trips_base": xgb_traffic.get("daily_trips_base") if xgb_traffic else None,
             },
             "economic": {
-                "score": xgb_economic["score"] if xgb_economic else fallback["economic"]["score"],
-                "description": xgb_economic["description"] if xgb_economic else fallback["economic"]["description"],
+                "score":             xgb_economic["score"]       if xgb_economic else fallback["economic"]["score"],
+                "description":       xgb_economic["description"] if xgb_economic else fallback["economic"]["description"],
+                "construction_jobs": xgb_economic.get("construction_jobs") if xgb_economic else None,
             },
             "infrastructure": fallback["infrastructure"],
             "housing":        fallback["housing"],

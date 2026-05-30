@@ -35,6 +35,7 @@ class BuildingOut(BaseModel):
 class ImpactDimension(BaseModel):
     score: int
     description: str
+    model_config = {"extra": "allow"}  # transit_tier, daily_trips, annual_kwh, etc. pass through
 
 
 class ImpactOut(BaseModel):
