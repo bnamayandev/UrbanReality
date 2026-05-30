@@ -1,6 +1,5 @@
 """
-Building image generator — delegates entirely to DALL-E 3 (gpt-image-1).
-No PIL drawing. Every image is AI-generated from the user's query.
+Building image generator — delegates to DALL-E 3.
 """
 
 from __future__ import annotations
@@ -15,5 +14,5 @@ def render_building(
     size: str,
     user_description: str = "",
 ) -> Optional[bytes]:
-    description = user_description or f"{size} {style.replace('_', ' ')} {building_type} {floors} floors"
-    return generate_dalle_image(user_description=description)
+    desc = user_description or f"{size} {style.replace('_', ' ')} {building_type} {floors} floors"
+    return generate_dalle_image(user_description=desc)
