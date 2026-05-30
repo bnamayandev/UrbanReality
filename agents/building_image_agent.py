@@ -25,9 +25,9 @@ from langgraph.graph import StateGraph, END
 
 # ─── Config ───────────────────────────────────────────────────────────────────
 
-NIM_BASE_URL = os.getenv("NIM_BASE_URL", "http://localhost:8000/v1")
-NIM_API_KEY  = os.getenv("NIM_API_KEY",  "not-needed")
-MODEL_NAME   = os.getenv("NIM_MODEL",    "nemotron-mini-4b-instruct")
+NIM_BASE_URL = os.getenv("MODEL_URL",  "https://integrate.api.nvidia.com/v1")
+NIM_API_KEY  = os.getenv("NGC_API_KEY", "not-needed")
+MODEL_NAME   = os.getenv("MODEL_NAME",  "nvidia/nemotron-mini-4b-instruct")
 OUTPUT_DIR   = Path(os.getenv("OUTPUT_DIR", "./agents/generated_buildings"))
 OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 
