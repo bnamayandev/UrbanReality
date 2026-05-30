@@ -1,0 +1,1024 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UrbanForge — NVIDIA Hackathon 2026</title>
+<style>
+  :root {
+    --bg: #050d1a;
+    --surface: #0d1b2e;
+    --surface2: #162039;
+    --surface3: #1c2d4a;
+    --border: #1e3a5f;
+    --green: #76b900;
+    --green-dim: #4d7a00;
+    --blue: #00a3ff;
+    --blue-dim: #005f99;
+    --text: #dde8f2;
+    --muted: #6a85a0;
+    --danger: #ff4444;
+    --warn: #f5a623;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { background: var(--bg); color: var(--text); font-family: system-ui, -apple-system, sans-serif; font-size: 14px; line-height: 1.6; min-height: 100vh; }
+
+  /* NAV */
+  header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 0 24px; display: flex; align-items: center; gap: 32px; position: sticky; top: 0; z-index: 100; }
+  .logo { display: flex; align-items: center; gap: 10px; padding: 16px 0; white-space: nowrap; }
+  .logo-mark { width: 28px; height: 28px; background: var(--green); border-radius: 6px; display: flex; align-items: center; justify-content: center; font-weight: 900; font-size: 13px; color: #000; }
+  .logo-text { font-weight: 700; font-size: 16px; color: var(--text); }
+  .logo-text span { color: var(--green); }
+  nav { display: flex; gap: 2px; overflow-x: auto; flex: 1; }
+  nav button { background: none; border: none; color: var(--muted); padding: 18px 14px; cursor: pointer; font-size: 13px; white-space: nowrap; border-bottom: 2px solid transparent; transition: all 0.15s; }
+  nav button:hover { color: var(--text); }
+  nav button.active { color: var(--green); border-bottom-color: var(--green); }
+  .badge { background: var(--green); color: #000; font-size: 10px; font-weight: 700; padding: 1px 5px; border-radius: 4px; margin-left: 6px; }
+
+  /* PANELS */
+  .panel { display: none; padding: 40px 24px; max-width: 1100px; margin: 0 auto; }
+  .panel.active { display: block; }
+
+  /* TYPOGRAPHY */
+  h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+  h2 { font-size: 20px; font-weight: 600; margin-bottom: 16px; color: var(--text); }
+  h3 { font-size: 15px; font-weight: 600; margin-bottom: 10px; color: var(--text); }
+  p { color: var(--muted); margin-bottom: 12px; }
+  .lead { font-size: 16px; color: var(--text); margin-bottom: 24px; }
+  .tag { display: inline-block; background: var(--surface2); border: 1px solid var(--border); border-radius: 4px; padding: 2px 8px; font-size: 11px; color: var(--muted); margin: 2px; }
+  .tag.green { border-color: var(--green-dim); color: var(--green); background: rgba(118,185,0,0.08); }
+  .tag.blue { border-color: var(--blue-dim); color: var(--blue); background: rgba(0,163,255,0.08); }
+  .tag.warn { border-color: #7a5100; color: var(--warn); background: rgba(245,166,35,0.08); }
+
+  /* CARDS */
+  .grid { display: grid; gap: 16px; }
+  .grid-2 { grid-template-columns: 1fr 1fr; }
+  .grid-3 { grid-template-columns: 1fr 1fr 1fr; }
+  .card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 20px; }
+  .card-title { font-size: 13px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em; margin-bottom: 10px; }
+  .card h3 { color: var(--text); }
+  .card.accent { border-color: var(--green-dim); background: rgba(118,185,0,0.05); }
+  .card.blue { border-color: var(--blue-dim); background: rgba(0,163,255,0.05); }
+
+  /* PROBLEM */
+  .problem-stat { display: flex; align-items: flex-start; gap: 12px; padding: 14px 0; border-bottom: 1px solid var(--border); }
+  .problem-stat:last-child { border-bottom: none; }
+  .stat-num { font-size: 28px; font-weight: 700; color: var(--green); width: 80px; flex-shrink: 0; }
+  .stat-label { color: var(--text); font-weight: 500; }
+  .stat-sub { color: var(--muted); font-size: 13px; }
+
+  /* SOLUTION */
+  .feature-row { display: flex; gap: 12px; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--border); }
+  .feature-icon { font-size: 20px; width: 36px; flex-shrink: 0; }
+  .feature-row h3 { margin-bottom: 4px; }
+  .feature-row p { margin: 0; font-size: 13px; }
+
+  /* ARCHITECTURE */
+  .arch-diagram { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 28px; margin: 20px 0; }
+  .arch-layer { display: flex; gap: 8px; align-items: center; margin-bottom: 8px; }
+  .arch-label { font-size: 11px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted); width: 110px; flex-shrink: 0; }
+  .arch-boxes { display: flex; gap: 8px; flex-wrap: wrap; }
+  .arch-box { background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 6px 12px; font-size: 12px; white-space: nowrap; }
+  .arch-box.highlight { border-color: var(--green-dim); color: var(--green); background: rgba(118,185,0,0.08); }
+  .arch-box.blue { border-color: var(--blue-dim); color: var(--blue); background: rgba(0,163,255,0.08); }
+  .arch-arrow { text-align: center; color: var(--border); font-size: 18px; margin: 2px 0 2px 118px; }
+
+  /* TECH STACK */
+  .tech-item { display: flex; gap: 16px; align-items: flex-start; padding: 14px; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; margin-bottom: 8px; }
+  .tech-badge { width: 40px; height: 40px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 18px; flex-shrink: 0; }
+  .tech-decision { font-size: 11px; color: var(--green); font-weight: 600; }
+  .tech-alt { font-size: 12px; color: var(--muted); margin-top: 4px; }
+
+  /* DATA */
+  .dataset { background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 14px; margin-bottom: 6px; display: flex; justify-content: space-between; align-items: flex-start; }
+  .dataset-name { font-size: 13px; font-weight: 500; margin-bottom: 4px; }
+  .dataset-use { font-size: 12px; color: var(--muted); }
+  .dataset-priority { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 4px; white-space: nowrap; }
+  .priority-must { background: rgba(118,185,0,0.15); color: var(--green); border: 1px solid var(--green-dim); }
+  .priority-nice { background: rgba(0,163,255,0.1); color: var(--blue); border: 1px solid var(--blue-dim); }
+
+  /* TEAM */
+  .team-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+  .role-card { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 18px; }
+  .role-num { width: 28px; height: 28px; border-radius: 6px; background: var(--green); color: #000; font-weight: 700; font-size: 13px; display: flex; align-items: center; justify-content: center; margin-bottom: 10px; }
+  .role-title { font-weight: 600; font-size: 15px; margin-bottom: 4px; }
+  .role-owns { font-size: 12px; color: var(--muted); margin-bottom: 10px; }
+  .timeline-item { display: flex; gap: 10px; font-size: 12px; margin-bottom: 6px; }
+  .timeline-hours { color: var(--green); font-weight: 600; white-space: nowrap; width: 70px; flex-shrink: 0; }
+  .timeline-task { color: var(--muted); }
+
+  /* CONFLICTS */
+  .rule { display: flex; gap: 10px; padding: 10px 14px; background: var(--surface2); border-left: 3px solid var(--warn); border-radius: 0 6px 6px 0; margin-bottom: 6px; font-size: 13px; }
+  .rule-icon { flex-shrink: 0; }
+
+  /* MASTER TIMELINE */
+  .timeline-bar { display: flex; height: 40px; border-radius: 6px; overflow: hidden; margin: 16px 0; }
+  .tbar-seg { display: flex; align-items: center; justify-content: center; font-size: 11px; font-weight: 600; color: rgba(0,0,0,0.7); }
+
+  /* PROTOTYPE */
+  .proto-toggle { display: flex; gap: 0; background: var(--surface); border: 1px solid var(--border); border-radius: 8px; padding: 3px; margin-bottom: 20px; width: fit-content; }
+  .proto-toggle button { background: none; border: none; color: var(--muted); padding: 8px 20px; cursor: pointer; border-radius: 6px; font-size: 13px; font-weight: 500; transition: all 0.15s; }
+  .proto-toggle button.active { background: var(--surface2); color: var(--text); }
+
+  .proto-shell { display: grid; grid-template-columns: 280px 1fr 320px; height: 560px; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; overflow: hidden; }
+  .proto-sidebar { border-right: 1px solid var(--border); padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 12px; }
+  .proto-sidebar h4 { font-size: 11px; text-transform: uppercase; letter-spacing: 0.07em; color: var(--muted); margin-bottom: 8px; }
+
+  /* Fake map */
+  .proto-map { position: relative; background: #0a1628; overflow: hidden; cursor: crosshair; }
+  .map-grid { position: absolute; inset: 0; background-image: linear-gradient(rgba(30,58,95,0.4) 1px, transparent 1px), linear-gradient(90deg, rgba(30,58,95,0.4) 1px, transparent 1px); background-size: 40px 40px; }
+  .map-road-h { position: absolute; height: 6px; background: #1a2d4a; }
+  .map-road-v { position: absolute; width: 6px; background: #1a2d4a; }
+  .map-label { position: absolute; font-size: 10px; color: rgba(100,140,180,0.6); pointer-events: none; font-weight: 500; }
+  .map-waterfront { position: absolute; bottom: 0; height: 60px; background: linear-gradient(transparent, rgba(0,60,120,0.4)); width: 100%; }
+  .building-marker { position: absolute; transform: translate(-50%, -50%); cursor: pointer; z-index: 10; }
+  .building-dot { width: 14px; height: 14px; border-radius: 3px; border: 2px solid; transition: transform 0.15s; }
+  .building-dot:hover { transform: scale(1.3); }
+  .building-dot.builder { background: rgba(118,185,0,0.3); border-color: var(--green); box-shadow: 0 0 8px rgba(118,185,0,0.5); }
+  .building-dot.existing { background: rgba(0,163,255,0.2); border-color: var(--blue); box-shadow: 0 0 8px rgba(0,163,255,0.4); }
+  .map-cursor-hint { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); border: 1px solid var(--border); border-radius: 20px; padding: 6px 14px; font-size: 11px; color: var(--muted); pointer-events: none; }
+
+  /* Sidebar form elements */
+  .form-group { display: flex; flex-direction: column; gap: 4px; }
+  .form-label { font-size: 11px; color: var(--muted); font-weight: 500; }
+  select, input[type=range] { background: var(--surface2); border: 1px solid var(--border); color: var(--text); border-radius: 5px; padding: 6px 10px; font-size: 12px; width: 100%; }
+  select:focus { outline: 1px solid var(--green); border-color: var(--green); }
+  input[type=range] { padding: 0; accent-color: var(--green); }
+  .range-val { font-size: 12px; color: var(--green); font-weight: 600; text-align: right; }
+  .btn { background: var(--green); color: #000; border: none; border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; transition: opacity 0.15s; }
+  .btn:hover { opacity: 0.85; }
+  .btn-outline { background: none; color: var(--text); border: 1px solid var(--border); border-radius: 6px; padding: 7px 16px; font-size: 13px; cursor: pointer; width: 100%; transition: all 0.15s; }
+  .btn-outline:hover { border-color: var(--muted); }
+  .btn-blue { background: var(--blue); color: #000; border: none; border-radius: 6px; padding: 8px 16px; font-size: 13px; font-weight: 600; cursor: pointer; width: 100%; }
+
+  /* Right panel */
+  .proto-right { border-left: 1px solid var(--border); display: flex; flex-direction: column; }
+  .proto-right-header { padding: 12px 16px; border-bottom: 1px solid var(--border); font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 8px; }
+  .status-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--green); box-shadow: 0 0 6px var(--green); }
+  .impact-list { padding: 16px; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 10px; }
+  .impact-item { background: var(--surface2); border: 1px solid var(--border); border-radius: 8px; padding: 12px; }
+  .impact-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+  .impact-name { font-size: 12px; font-weight: 600; }
+  .impact-score { font-size: 18px; font-weight: 700; }
+  .impact-bar-bg { height: 4px; background: var(--surface3); border-radius: 2px; }
+  .impact-bar { height: 4px; border-radius: 2px; transition: width 0.8s ease; }
+  .impact-desc { font-size: 11px; color: var(--muted); margin-top: 6px; }
+
+  /* Chat */
+  .chat-messages { flex: 1; padding: 14px; overflow-y: auto; display: flex; flex-direction: column; gap: 8px; }
+  .msg { max-width: 85%; padding: 8px 12px; border-radius: 10px; font-size: 12px; line-height: 1.5; }
+  .msg.bot { background: var(--surface2); border: 1px solid var(--border); color: var(--text); align-self: flex-start; border-bottom-left-radius: 2px; }
+  .msg.user { background: var(--blue-dim); color: var(--text); align-self: flex-end; border-bottom-right-radius: 2px; }
+  .chat-input-row { padding: 12px; border-top: 1px solid var(--border); display: flex; gap: 8px; }
+  .chat-input { flex: 1; background: var(--surface2); border: 1px solid var(--border); border-radius: 6px; padding: 7px 10px; color: var(--text); font-size: 12px; }
+  .chat-input:focus { outline: 1px solid var(--blue); border-color: var(--blue); }
+  .chat-send { background: var(--blue); border: none; border-radius: 6px; color: #000; font-weight: 700; padding: 7px 12px; cursor: pointer; font-size: 12px; }
+
+  .chip-row { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 4px; }
+  .chip { background: var(--surface3); border: 1px solid var(--border); border-radius: 20px; padding: 3px 10px; font-size: 11px; cursor: pointer; color: var(--muted); }
+  .chip:hover { border-color: var(--blue); color: var(--blue); }
+
+  .placeholder-state { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; color: var(--muted); text-align: center; padding: 20px; gap: 8px; }
+  .placeholder-state .icon { font-size: 32px; opacity: 0.4; }
+
+  /* SECTION HEADERS */
+  .section-header { margin-bottom: 28px; }
+  .section-header .overline { font-size: 11px; text-transform: uppercase; letter-spacing: 0.1em; color: var(--green); font-weight: 600; margin-bottom: 8px; }
+  .divider { height: 1px; background: var(--border); margin: 28px 0; }
+
+  /* NOTICES */
+  .notice { padding: 12px 16px; border-radius: 8px; font-size: 13px; margin-bottom: 16px; display: flex; gap: 10px; }
+  .notice.info { background: rgba(0,163,255,0.07); border: 1px solid var(--blue-dim); color: var(--text); }
+  .notice.warn { background: rgba(245,166,35,0.07); border: 1px solid #7a5100; color: var(--warn); }
+
+  @media (max-width: 900px) {
+    .grid-2, .grid-3 { grid-template-columns: 1fr; }
+    .team-grid { grid-template-columns: 1fr; }
+    .proto-shell { grid-template-columns: 1fr; height: auto; }
+    .proto-map { height: 300px; }
+    .proto-right { height: 300px; }
+    .arch-label { width: 80px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">
+    <div class="logo-mark">UF</div>
+    <div class="logo-text">Urban<span>Forge</span></div>
+  </div>
+  <nav id="nav">
+    <button class="active" data-tab="problem">Problem</button>
+    <button data-tab="solution">Solution</button>
+    <button data-tab="architecture">Architecture</button>
+    <button data-tab="techstack">Tech Stack</button>
+    <button data-tab="data">Open Data <span class="badge">Guide</span></button>
+    <button data-tab="team">Team Plan <span class="badge">6 ppl</span></button>
+    <button data-tab="prototype">Prototype <span class="badge">Live</span></button>
+  </nav>
+</header>
+
+<!-- ======= PROBLEM ======= -->
+<div class="panel active" id="tab-problem">
+  <div class="section-header">
+    <div class="overline">Challenge Track — Urban Operations &amp; Economic Systems</div>
+    <h1>Toronto has a transparency problem with urban development</h1>
+    <p class="lead">Thousands of development applications move through the city each year. Residents, businesses, and planners have no unified, visual, data-driven way to understand what's being built and what it means for them.</p>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-title">The Gaps Right Now</div>
+      <div class="problem-stat">
+        <div class="stat-num">2,000+</div>
+        <div><div class="stat-label">Development applications per year in Toronto</div><div class="stat-sub">Most residents never hear about them until a building appears</div></div>
+      </div>
+      <div class="problem-stat">
+        <div class="stat-num">3+</div>
+        <div><div class="stat-label">Disconnected portals to find development data</div><div class="stat-sub">City of Toronto, MPAC, Dev apps — none talk to each other</div></div>
+      </div>
+      <div class="problem-stat">
+        <div class="stat-num">0</div>
+        <div><div class="stat-label">Tools that let you visualize a building's impact before it's built</div><div class="stat-sub">Developers use proprietary tools; the public uses imagination</div></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Who Is Affected</div>
+      <div class="feature-row">
+        <div class="feature-icon">🏗️</div>
+        <div><h3>Developers &amp; Architects</h3><p>No fast way to assess site feasibility, zoning compliance, or neighbourhood impact before committing to a location.</p></div>
+      </div>
+      <div class="feature-row">
+        <div class="feature-icon">🏘️</div>
+        <div><h3>Residents</h3><p>No accessible way to understand how a new development affects their rent, transit, or quality of life.</p></div>
+      </div>
+      <div class="feature-row">
+        <div class="feature-icon">💼</div>
+        <div><h3>Businesses &amp; Investors</h3><p>Foot traffic, property value, and demand signals are scattered across incompatible datasets.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <h2>Root Cause</h2>
+  <p>The data exists — Toronto Open Data has traffic volumes, building permits, tree canopy, zoning, and more. The problem is it's raw, disconnected, and requires technical expertise to use. There is no intelligent layer that translates data into human-meaningful insights about what a development actually means for the city.</p>
+</div>
+
+<!-- ======= SOLUTION ======= -->
+<div class="panel" id="tab-solution">
+  <div class="section-header">
+    <div class="overline">Solution Overview</div>
+    <h1>UrbanForge — AI-Powered Urban Development Intelligence</h1>
+    <p class="lead">An interactive map platform where anyone can visualize proposed buildings in 3D anywhere in Toronto, and get instant AI-generated impact analysis — powered by NVIDIA NeMoTron running locally on DGX Spark.</p>
+  </div>
+
+  <div class="grid grid-2" style="margin-bottom:24px">
+    <div class="card accent">
+      <div class="card-title">Builder / Developer Interface</div>
+      <div class="feature-row">
+        <div class="feature-icon">📍</div>
+        <div><h3>Place Anywhere on the Map</h3><p>Drop a building anywhere in Toronto, configure footprint, height, floors, type, and material.</p></div>
+      </div>
+      <div class="feature-row">
+        <div class="feature-icon">🏛️</div>
+        <div><h3>3D Rendering</h3><p>Real-time 3D building extrusion rendered on Mapbox GL JS with zoning and neighbourhood context.</p></div>
+      </div>
+      <div class="feature-row">
+        <div class="feature-icon">🤖</div>
+        <div><h3>AI Impact Analysis Agent</h3><p>NeMoTron analyzes the site using Toronto Open Data — traffic load, environmental footprint, economic displacement, infrastructure pressure.</p></div>
+      </div>
+      <div class="feature-row">
+        <div class="feature-icon">🗺️</div>
+        <div><h3>Smart Suggestions</h3><p>Agent suggests nearby infrastructure changes: road widening, park needs, transit load implications.</p></div>
+      </div>
+    </div>
+
+    <div class="card blue">
+      <div class="card-title">Public / Citizen Interface</div>
+      <div class="feature-row">
+        <div class="feature-icon">👁️</div>
+        <div><h3>Explore All Active Developments</h3><p>See every planned and active building project on an interactive Toronto map — not just your neighbourhood.</p></div>
+      </div>
+      <div class="feature-row">
+        <div class="feature-icon">📋</div>
+        <div><h3>Building Detail View</h3><p>Click any building to see: specs, 3D rendering, timeline, developer info, and full impact report.</p></div>
+      </div>
+      <div class="feature-row">
+        <div class="feature-icon">💬</div>
+        <div><h3>Persona-Aware Chatbot</h3><p>Chatbot adapts to context. Investor asks about ROI signals — gets economic data. Resident asks about displacement — gets housing/transit analysis.</p></div>
+      </div>
+      <div class="feature-row">
+        <div class="feature-icon">🔔</div>
+        <div><h3>Neighbourhood Alerts (stretch)</h3><p>Subscribe to notifications when a new development is submitted near your address.</p></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="notice info">
+    <span>💡</span>
+    <span><strong>Core Differentiator:</strong> The AI doesn't just display data — it reasons over it. "What happens to pedestrian traffic on King St if a 40-storey residential tower goes up here?" is a question only an agent with access to traffic + transit + zoning data can answer.</span>
+  </div>
+
+  <div class="divider"></div>
+  <h2>Impact Dimensions Analyzed by the AI</h2>
+  <div class="grid grid-3">
+    <div class="card">
+      <div class="card-title">Environmental</div>
+      <h3>🌿</h3>
+      <p>Tree canopy displaced, green space lost, stormwater runoff increase, urban heat island contribution, shadow cast on solar panels nearby.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Economic</div>
+      <h3>📈</h3>
+      <p>Estimated property value shift in 500m radius, projected retail foot traffic change, new housing unit supply vs neighbourhood demand.</p>
+    </div>
+    <div class="card">
+      <div class="card-title">Infrastructure</div>
+      <h3>🚦</h3>
+      <p>Vehicle trips added to nearby intersections, TTC load increase, parking demand, water and sewer system pressure, electrical grid load.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ======= ARCHITECTURE ======= -->
+<div class="panel" id="tab-architecture">
+  <div class="section-header">
+    <div class="overline">System Architecture</div>
+    <h1>How it all fits together</h1>
+  </div>
+
+  <div class="arch-diagram">
+    <div class="arch-layer">
+      <div class="arch-label">DATA SOURCES</div>
+      <div class="arch-boxes">
+        <div class="arch-box">Toronto Open Data API</div>
+        <div class="arch-box">Mapbox Geocoding</div>
+        <div class="arch-box">Building Permits Feed</div>
+        <div class="arch-box">User Input (Builder)</div>
+      </div>
+    </div>
+    <div class="arch-arrow">↓</div>
+    <div class="arch-layer">
+      <div class="arch-label">DATA LAYER</div>
+      <div class="arch-boxes">
+        <div class="arch-box highlight">PostGIS Database</div>
+        <div class="arch-box">Data Normalization Pipeline</div>
+        <div class="arch-box">Spatial Indexing</div>
+      </div>
+    </div>
+    <div class="arch-arrow">↓</div>
+    <div class="arch-layer">
+      <div class="arch-label">AI LAYER</div>
+      <div class="arch-boxes">
+        <div class="arch-box highlight">NeMoTron on DGX Spark (local)</div>
+        <div class="arch-box">Impact Analysis Agent</div>
+        <div class="arch-box">Citizen Chatbot Agent</div>
+        <div class="arch-box">Suggestion Agent</div>
+      </div>
+    </div>
+    <div class="arch-arrow">↓</div>
+    <div class="arch-layer">
+      <div class="arch-label">API LAYER</div>
+      <div class="arch-boxes">
+        <div class="arch-box blue">FastAPI Backend</div>
+        <div class="arch-box">REST Endpoints</div>
+        <div class="arch-box">WebSocket (chat)</div>
+      </div>
+    </div>
+    <div class="arch-arrow">↓</div>
+    <div class="arch-layer">
+      <div class="arch-label">CLIENT</div>
+      <div class="arch-boxes">
+        <div class="arch-box blue">React Frontend</div>
+        <div class="arch-box">Mapbox GL JS (3D Map)</div>
+        <div class="arch-box">Builder UI</div>
+        <div class="arch-box">Public UI</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="grid grid-2">
+    <div class="card">
+      <div class="card-title">NeMoTron Agent Design</div>
+      <h3>Multi-Agent Orchestration</h3>
+      <p>Three specialized agents are orchestrated per building request:</p>
+      <div class="feature-row" style="padding:8px 0; border-bottom:1px solid var(--border)">
+        <div class="feature-icon" style="font-size:14px">1.</div>
+        <div><h3 style="font-size:13px">Context Agent</h3><p>Pulls relevant data from PostGIS for the given coordinates: zoning, nearby traffic, tree coverage, business density.</p></div>
+      </div>
+      <div class="feature-row" style="padding:8px 0; border-bottom:1px solid var(--border)">
+        <div class="feature-icon" style="font-size:14px">2.</div>
+        <div><h3 style="font-size:13px">Impact Reasoning Agent</h3><p>Reasons over context + building specs to produce structured impact scores and natural language explanations.</p></div>
+      </div>
+      <div class="feature-row" style="padding:8px 0">
+        <div class="feature-icon" style="font-size:14px">3.</div>
+        <div><h3 style="font-size:13px">Citizen Q&amp;A Agent</h3><p>Conversational agent with full building context loaded. Adapts tone and focus to detected user persona.</p></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">Data Flow for Impact Analysis</div>
+      <div class="timeline-item" style="margin-bottom:8px"><div class="timeline-hours">Step 1</div><div class="timeline-task">User places building on map → coordinates + specs sent to API</div></div>
+      <div class="timeline-item" style="margin-bottom:8px"><div class="timeline-hours">Step 2</div><div class="timeline-task">PostGIS spatial query: find all datasets within 500m radius</div></div>
+      <div class="timeline-item" style="margin-bottom:8px"><div class="timeline-hours">Step 3</div><div class="timeline-task">Context packaged into structured prompt for NeMoTron</div></div>
+      <div class="timeline-item" style="margin-bottom:8px"><div class="timeline-hours">Step 4</div><div class="timeline-task">NeMoTron runs locally on DGX Spark → zero latency, no API cost</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Step 5</div><div class="timeline-task">Structured JSON response returned → rendered as impact dashboard</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ======= TECH STACK ======= -->
+<div class="panel" id="tab-techstack">
+  <div class="section-header">
+    <div class="overline">Technology Decisions</div>
+    <h1>Stack chosen for 36-hour buildability</h1>
+    <p class="lead">Every choice is made to maximize what you can demo in 36 hours while looking polished enough to win.</p>
+  </div>
+
+  <h2>Frontend</h2>
+  <div class="tech-item">
+    <div class="tech-badge" style="background:rgba(0,163,255,0.1)">🗺️</div>
+    <div>
+      <div class="tech-decision">CHOSEN: Mapbox GL JS (free tier — 50K loads/month)</div>
+      <h3>3D Map &amp; Building Rendering</h3>
+      <p>Best combination of free tier, 3D building extrusion via <code>fill-extrusion</code> layer, and Toronto building footprint support. Drop a GeoJSON polygon + height = instant 3D building. Looks stunning out of the box.</p>
+      <div class="tech-alt">Alternatives considered: CesiumJS (more powerful but steeper setup), Google Maps (3D locked behind paid tier), Leaflet (no native 3D)</div>
+    </div>
+  </div>
+  <div class="tech-item">
+    <div class="tech-badge" style="background:rgba(118,185,0,0.1)">⚛️</div>
+    <div>
+      <div class="tech-decision">CHOSEN: React + Vite</div>
+      <h3>Frontend Framework</h3>
+      <p>Fast setup, component isolation for Builder vs Public mode, fast HMR during dev. Use <code>mapbox-gl</code> React wrapper (<code>react-map-gl</code>) for easy integration.</p>
+    </div>
+  </div>
+  <div class="tech-item">
+    <div class="tech-badge" style="background:rgba(245,166,35,0.1)">📊</div>
+    <div>
+      <div class="tech-decision">OPTIONAL: deck.gl (from Uber/NVIDIA)</div>
+      <h3>Data Visualization Layers</h3>
+      <p>If time allows, add deck.gl for heatmap layers showing traffic volume, tree density, and building density across Toronto. Layered on top of Mapbox. Looks incredible and fits the NVIDIA narrative.</p>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <h2>Backend</h2>
+  <div class="tech-item">
+    <div class="tech-badge" style="background:rgba(0,163,255,0.1)">⚡</div>
+    <div>
+      <div class="tech-decision">CHOSEN: FastAPI (Python)</div>
+      <h3>API Server</h3>
+      <p>Python-native, async, auto-generates docs at <code>/docs</code>. Same language as the AI stack so no context switching. <code>uvicorn</code> for serving.</p>
+    </div>
+  </div>
+  <div class="tech-item">
+    <div class="tech-badge" style="background:rgba(118,185,0,0.1)">🗄️</div>
+    <div>
+      <div class="tech-decision">CHOSEN: PostgreSQL + PostGIS</div>
+      <h3>Geospatial Database</h3>
+      <p>PostGIS lets you run spatial queries like "find all traffic intersections within 500m of this coordinate" in one SQL line. Ingest Toronto Open Data shapefiles directly. Use SQLAlchemy for Python ORM.</p>
+      <div class="tech-alt">Quick alternative if DB setup is slow: store datasets as in-memory GeoJSON, query with Shapely. Slower but no DB required.</div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <h2>AI / Inference</h2>
+  <div class="tech-item">
+    <div class="tech-badge" style="background:rgba(118,185,0,0.15)">🧠</div>
+    <div>
+      <div class="tech-decision">CHOSEN: NVIDIA NeMoTron (local on DGX Spark)</div>
+      <h3>Language Model</h3>
+      <p>Running locally = zero API cost, zero latency waiting on external servers, and it's the hardware NVIDIA gave you — use it as the core pitch. Expose via NVIDIA NIM endpoint (<code>http://localhost:8000</code>), call from FastAPI like any OpenAI-compatible API.</p>
+      <div class="tech-alt">Fallback: NVIDIA Build API endpoints (cloud) if local setup has issues during the hackathon.</div>
+    </div>
+  </div>
+  <div class="tech-item">
+    <div class="tech-badge" style="background:rgba(0,163,255,0.1)">🔗</div>
+    <div>
+      <div class="tech-decision">CHOSEN: LangChain or direct API calls</div>
+      <h3>Agent Orchestration</h3>
+      <p>For speed: use structured prompts with direct API calls rather than a full agent framework. Keep it simple — one endpoint per agent task, system prompt + context data injection. LangChain only if you need tool-calling loops.</p>
+    </div>
+  </div>
+</div>
+
+<!-- ======= DATA ======= -->
+<div class="panel" id="tab-data">
+  <div class="section-header">
+    <div class="overline">Toronto Open Data — Dataset Guide</div>
+    <h1>What to search for and why</h1>
+    <p class="lead">Search these exact terms at <strong>open.toronto.ca</strong>. MUST-HAVE datasets are critical to core features. NICE-TO-HAVE add depth to the demo.</p>
+  </div>
+
+  <div class="notice info">
+    <span>ℹ️</span>
+    <span>All Toronto Open Data is available via REST API (CKAN). Base URL: <code>https://ckan0.cf.opendata.inter.prod-toronto.ca/api/3/action/</code>. Most datasets are GeoJSON or CSV. Load into PostGIS using <code>ogr2ogr</code> or Python <code>geopandas</code>.</span>
+  </div>
+
+  <h2 style="margin-bottom:12px">🚦 Traffic &amp; Mobility</h2>
+  <div class="dataset">
+    <div><div class="dataset-name">Traffic Signal Vehicle and Pedestrian Volumes</div><div class="dataset-use">Hourly traffic counts at intersections. Core to estimating how much a new building increases congestion at nearby roads.</div><div style="margin-top:6px"><span class="tag green">traffic volumes</span><span class="tag">intersections</span></div></div>
+    <div class="dataset-priority priority-must">MUST HAVE</div>
+  </div>
+  <div class="dataset">
+    <div><div class="dataset-name">Street Centreline</div><div class="dataset-use">Complete road network of Toronto. Needed to display streets on the map and for routing impact analysis.</div><div style="margin-top:6px"><span class="tag green">street centreline</span></div></div>
+    <div class="dataset-priority priority-must">MUST HAVE</div>
+  </div>
+  <div class="dataset">
+    <div><div class="dataset-name">TTC Routes and Schedules</div><div class="dataset-use">Transit lines near the building site. Tells the AI which TTC stops are within walking distance and their current load.</div><div style="margin-top:6px"><span class="tag green">TTC routes</span><span class="tag">transit</span></div></div>
+    <div class="dataset-priority priority-must">MUST HAVE</div>
+  </div>
+  <div class="dataset">
+    <div><div class="dataset-name">Cycling Network</div><div class="dataset-use">Bike lane proximity. Relevant to active transportation impact assessment.</div><div style="margin-top:6px"><span class="tag">cycling network</span><span class="tag">bike lanes</span></div></div>
+    <div class="dataset-priority priority-nice">NICE TO HAVE</div>
+  </div>
+
+  <div class="divider"></div>
+  <h2 style="margin-bottom:12px">🏗️ Urban Planning &amp; Buildings</h2>
+  <div class="dataset">
+    <div><div class="dataset-name">Building Permits</div><div class="dataset-use">Active and completed permits in Toronto. This seeds the public-facing map with real buildings already in development.</div><div style="margin-top:6px"><span class="tag green">building permits</span></div></div>
+    <div class="dataset-priority priority-must">MUST HAVE</div>
+  </div>
+  <div class="dataset">
+    <div><div class="dataset-name">Zoning By-law</div><div class="dataset-use">Defines what can be built where (height limits, land use). Critical for validating whether a proposed building is even legal.</div><div style="margin-top:6px"><span class="tag green">zoning by-law</span><span class="tag">land use</span></div></div>
+    <div class="dataset-priority priority-must">MUST HAVE</div>
+  </div>
+  <div class="dataset">
+    <div><div class="dataset-name">Development Applications</div><div class="dataset-use">Pending development applications — more up-to-date than issued permits for showing what's planned.</div><div style="margin-top:6px"><span class="tag green">development applications</span></div></div>
+    <div class="dataset-priority priority-must">MUST HAVE</div>
+  </div>
+  <div class="dataset">
+    <div><div class="dataset-name">Heritage Register</div><div class="dataset-use">Protected heritage buildings. Alerts the AI if a proposed building is near a heritage site (planning sensitivity).</div><div style="margin-top:6px"><span class="tag">heritage register</span><span class="tag">cultural</span></div></div>
+    <div class="dataset-priority priority-nice">NICE TO HAVE</div>
+  </div>
+
+  <div class="divider"></div>
+  <h2 style="margin-bottom:12px">🌿 Environment</h2>
+  <div class="dataset">
+    <div><div class="dataset-name">Street Tree Data</div><div class="dataset-use">Location and species of every street tree. Lets the AI calculate tree canopy displaced by a building footprint.</div><div style="margin-top:6px"><span class="tag green">street trees</span><span class="tag">tree canopy</span></div></div>
+    <div class="dataset-priority priority-must">MUST HAVE</div>
+  </div>
+  <div class="dataset">
+    <div><div class="dataset-name">Parks and Recreation Facility Inventory</div><div class="dataset-use">Location and size of all parks. Used to measure green space per capita impact as density increases.</div><div style="margin-top:6px"><span class="tag green">parks facility</span><span class="tag">recreation</span></div></div>
+    <div class="dataset-priority priority-must">MUST HAVE</div>
+  </div>
+  <div class="dataset">
+    <div><div class="dataset-name">Green Roof Inventory</div><div class="dataset-use">Existing green roofs in Toronto. Context for environmental scoring of a new building.</div><div style="margin-top:6px"><span class="tag">green roof</span></div></div>
+    <div class="dataset-priority priority-nice">NICE TO HAVE</div>
+  </div>
+
+  <div class="divider"></div>
+  <h2 style="margin-bottom:12px">💼 Economy</h2>
+  <div class="dataset">
+    <div><div class="dataset-name">Business Licences</div><div class="dataset-use">Density and type of businesses in any area. Useful for estimating economic displacement and foot traffic patterns.</div><div style="margin-top:6px"><span class="tag green">business licences</span></div></div>
+    <div class="dataset-priority priority-must">MUST HAVE</div>
+  </div>
+  <div class="dataset">
+    <div><div class="dataset-name">Neighbourhood Profiles</div><div class="dataset-use">Census-based demographic and economic data per neighbourhood. Gives context to displacement risk and demand signals.</div><div style="margin-top:6px"><span class="tag green">neighbourhood profiles</span><span class="tag">demographics</span></div></div>
+    <div class="dataset-priority priority-must">MUST HAVE</div>
+  </div>
+  <div class="dataset">
+    <div><div class="dataset-name">Assessment Roll (MPAC)</div><div class="dataset-use">Property values. Baseline for estimating how a new development shifts surrounding property prices.</div><div style="margin-top:6px"><span class="tag">assessment roll</span><span class="tag">property tax</span></div></div>
+    <div class="dataset-priority priority-nice">NICE TO HAVE</div>
+  </div>
+</div>
+
+<!-- ======= TEAM ======= -->
+<div class="panel" id="tab-team">
+  <div class="section-header">
+    <div class="overline">Team Delegation — 6 People, 36 Hours</div>
+    <h1>Clear ownership, no stepping on each other</h1>
+    <p class="lead">Every person has one primary domain. The Integration lead is the glue — no duplicated work, clear API contracts from hour 2.</p>
+  </div>
+
+  <div class="notice warn">
+    <span>⚠️</span>
+    <span><strong>Rule #1:</strong> By Hour 2, everyone agrees on the API contract (endpoint shapes + request/response JSON). Frontend mocks these. Backend implements. This is the single biggest conflict prevention.</span>
+  </div>
+
+  <div class="team-grid">
+    <div class="role-card">
+      <div class="role-num">1</div>
+      <div class="role-title">Data Engineer</div>
+      <div class="role-owns">Owns: All Toronto Open Data ingestion + PostGIS</div>
+      <span class="tag green">Already assigned</span>
+      <br><br>
+      <div class="timeline-item"><div class="timeline-hours">Hr 0–4</div><div class="timeline-task">Pull MUST HAVE datasets (building permits, traffic, zoning, trees, business licences), explore formats</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 4–12</div><div class="timeline-task">Load into PostGIS, write spatial query functions (radius search, area lookup)</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 12–24</div><div class="timeline-task">Expose data via FastAPI endpoints, iterate as AI team needs more context fields</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 24–36</div><div class="timeline-task">Prep demo data for specific Toronto sites (King & Spadina, etc.), support pitch</div></div>
+    </div>
+
+    <div class="role-card">
+      <div class="role-num">2</div>
+      <div class="role-title">3D Rendering / Maps</div>
+      <div class="role-owns">Owns: Mapbox setup, 3D building placement, map interactions</div>
+      <span class="tag green">Already assigned</span>
+      <br><br>
+      <div class="timeline-item"><div class="timeline-hours">Hr 0–4</div><div class="timeline-task">Mapbox GL JS + react-map-gl setup, Toronto bounds, dark style applied</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 4–10</div><div class="timeline-task">3D building extrusion via fill-extrusion layer, click-to-place interaction</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 10–20</div><div class="timeline-task">Building markers for public mode, popup cards, camera fly-to animation</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 20–30</div><div class="timeline-task">Polish visual style, deck.gl heatmap layers if time allows</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 30–36</div><div class="timeline-task">Demo scenarios: pre-set camera angles for specific pitch buildings</div></div>
+    </div>
+
+    <div class="role-card">
+      <div class="role-num">3</div>
+      <div class="role-title">AI / ML Engineer</div>
+      <div class="role-owns">Owns: NeMoTron inference, agent design, prompt engineering</div>
+      <div class="timeline-item" style="margin-top:12px"><div class="timeline-hours">Hr 0–4</div><div class="timeline-task">Get NeMoTron running on DGX Spark, confirm inference endpoint works, test basic prompts</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 4–10</div><div class="timeline-task">Design system prompts for Impact Agent + Citizen Chatbot, define JSON output schema</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 10–20</div><div class="timeline-task">Build prompt templates with data injection, test full impact analysis pipeline</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 20–28</div><div class="timeline-task">Integrate with Backend endpoints, tune prompts for consistent output quality</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 28–36</div><div class="timeline-task">Demo-quality prompt tuning, ensure chatbot responses are clean for pitch</div></div>
+    </div>
+
+    <div class="role-card">
+      <div class="role-num">4</div>
+      <div class="role-title">Backend Engineer</div>
+      <div class="role-owns">Owns: FastAPI server, DB schema, endpoint implementation</div>
+      <div class="timeline-item" style="margin-top:12px"><div class="timeline-hours">Hr 0–4</div><div class="timeline-task">FastAPI project setup, DB schema (buildings, impacts, chat_sessions), env config</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 4–10</div><div class="timeline-task">Core endpoints: POST /building, GET /buildings, GET /building/:id/impact</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 10–18</div><div class="timeline-task">Data proxy endpoints (spatial queries from PostGIS), integrate with AI Agent calls</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 18–28</div><div class="timeline-task">WebSocket for chat streaming, CORS, error handling, connect all pieces</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 28–36</div><div class="timeline-task">Bug fixes, performance (add caching for repeated spatial queries)</div></div>
+    </div>
+
+    <div class="role-card">
+      <div class="role-num">5</div>
+      <div class="role-title">Frontend / UX</div>
+      <div class="role-owns">Owns: React UI components, both Builder and Public interfaces</div>
+      <div class="timeline-item" style="margin-top:12px"><div class="timeline-hours">Hr 0–4</div><div class="timeline-task">React + Vite setup, design tokens (colors, fonts), mock API responses to unblock UI</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 4–12</div><div class="timeline-task">Builder sidebar (building config form + sliders), impact results panel</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 12–20</div><div class="timeline-task">Public mode: building info drawer, chatbot UI, persona selector</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 20–28</div><div class="timeline-task">Wire up real API calls, replace mocks, handle loading + error states</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 28–36</div><div class="timeline-task">Visual polish, mobile responsiveness, demo flow rehearsal</div></div>
+    </div>
+
+    <div class="role-card">
+      <div class="role-num">6</div>
+      <div class="role-title">Integration Lead</div>
+      <div class="role-owns">Owns: System glue, unblocking, demo prep, pitch</div>
+      <div class="timeline-item" style="margin-top:12px"><div class="timeline-hours">Hr 0–2</div><div class="timeline-task">Run kickoff: agree on API contract doc, assign repos/branches, set up shared environment</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 2–10</div><div class="timeline-task">Write API contract doc, set up dev environment for all, fill in wherever someone is blocked</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 10–20</div><div class="timeline-task">First end-to-end integration test: place building → get AI analysis → display result</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 20–28</div><div class="timeline-task">Identify integration bugs, coordinate fixes, prepare fallback demo if live breaks</div></div>
+      <div class="timeline-item"><div class="timeline-hours">Hr 28–36</div><div class="timeline-task">Demo script, slides, pitch narrative, rehearse with team</div></div>
+    </div>
+  </div>
+
+  <div class="divider"></div>
+  <h2>36-Hour Master Timeline</h2>
+  <div class="timeline-bar">
+    <div class="tbar-seg" style="background:#76b900;width:16.6%">Setup (0–6h)</div>
+    <div class="tbar-seg" style="background:#4d7a00;width:33.3%">Core Build (6–18h)</div>
+    <div class="tbar-seg" style="background:#005f99;width:27.7%">Integration (18–28h)</div>
+    <div class="tbar-seg" style="background:#00a3ff;width:16.6%">Polish (28–34h)</div>
+    <div class="tbar-seg" style="background:#1e3a5f;width:5.5%">Pitch (34–36h)</div>
+  </div>
+
+  <div class="divider"></div>
+  <h2>Conflict Prevention Rules</h2>
+  <div class="rule"><span class="rule-icon">📄</span><span><strong>API contract first.</strong> Integration Lead writes a shared doc with all endpoint shapes (URL, request body, response schema) before anyone writes code. Frontend builds against mocks. No ambiguity.</span></div>
+  <div class="rule"><span class="rule-icon">🌿</span><span><strong>One branch per person.</strong> No one pushes to main. Integration Lead merges. This prevents conflicts when everyone is coding at 3am.</span></div>
+  <div class="rule"><span class="rule-icon">💬</span><span><strong>Blockers announced immediately</strong> — not "I'll figure it out." If you're stuck for more than 30 minutes, say something. Integration Lead is there to unblock.</span></div>
+  <div class="rule"><span class="rule-icon">🎭</span><span><strong>Demo data locked at Hour 28.</strong> After that, no new data sources. Only UI polish and bug fixes. The demo must work reliably on the three pre-chosen Toronto locations.</span></div>
+  <div class="rule"><span class="rule-icon">🔒</span><span><strong>Feature freeze at Hour 30.</strong> No new features after Hour 30. Shipping what works > adding what breaks.</span></div>
+</div>
+
+<!-- ======= PROTOTYPE ======= -->
+<div class="panel" id="tab-prototype">
+  <div class="section-header">
+    <div class="overline">Interactive Prototype</div>
+    <h1>Simulated UI — both interfaces</h1>
+    <p class="lead">This is a functional mockup of the core UX. The real app uses Mapbox GL JS with actual geospatial data in place of this simulated map.</p>
+  </div>
+
+  <div class="proto-toggle">
+    <button class="active" id="btn-builder" onclick="switchMode('builder')">🏗️ Builder Mode</button>
+    <button id="btn-public" onclick="switchMode('public')">👁️ Public Mode</button>
+  </div>
+
+  <div class="proto-shell">
+    <!-- LEFT SIDEBAR -->
+    <div class="proto-sidebar" id="sidebar-builder">
+      <h4>New Building</h4>
+
+      <div class="form-group">
+        <div class="form-label">Building Type</div>
+        <select id="bldg-type">
+          <option>Residential (High-rise)</option>
+          <option>Residential (Mid-rise)</option>
+          <option>Mixed-Use</option>
+          <option>Commercial Office</option>
+          <option>Retail / Podium</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">Primary Material</div>
+        <select id="bldg-material">
+          <option>Concrete &amp; Glass</option>
+          <option>Mass Timber</option>
+          <option>Steel Frame</option>
+          <option>Brick &amp; Concrete</option>
+        </select>
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">Floors: <span class="range-val" id="floor-val">24</span></div>
+        <input type="range" min="2" max="80" value="24" id="floor-slider" oninput="document.getElementById('floor-val').textContent=this.value">
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">Footprint (m²): <span class="range-val" id="fp-val">2000</span></div>
+        <input type="range" min="200" max="8000" value="2000" step="100" id="fp-slider" oninput="document.getElementById('fp-val').textContent=this.value">
+      </div>
+
+      <div class="form-group">
+        <div class="form-label">Units / Floor: <span class="range-val" id="unit-val">12</span></div>
+        <input type="range" min="2" max="40" value="12" id="unit-slider" oninput="document.getElementById('unit-val').textContent=this.value">
+      </div>
+
+      <button class="btn" onclick="runAnalysis()">⚡ Analyze Impact</button>
+      <button class="btn-outline" onclick="clearBuilding()">Clear Building</button>
+
+      <div style="font-size:11px;color:var(--muted);text-align:center;margin-top:4px">Click the map to place your building</div>
+    </div>
+
+    <!-- PUBLIC SIDEBAR -->
+    <div class="proto-sidebar" id="sidebar-public" style="display:none">
+      <h4>Active Developments</h4>
+      <div id="bldg-list"></div>
+    </div>
+
+    <!-- MAP -->
+    <div class="proto-map" id="proto-map" onclick="handleMapClick(event)">
+      <div class="map-grid"></div>
+      <!-- Simulated roads -->
+      <div class="map-road-h" style="top:30%;left:0;right:0"></div>
+      <div class="map-road-h" style="top:55%;left:0;right:0"></div>
+      <div class="map-road-h" style="top:75%;left:0;right:0"></div>
+      <div class="map-road-v" style="left:25%;top:0;bottom:0"></div>
+      <div class="map-road-v" style="left:50%;top:0;bottom:0"></div>
+      <div class="map-road-v" style="left:75%;top:0;bottom:0"></div>
+      <div class="map-waterfront"></div>
+      <!-- Street labels -->
+      <div class="map-label" style="top:28%;left:5%">King St W</div>
+      <div class="map-label" style="top:53%;left:5%">Queen St W</div>
+      <div class="map-label" style="top:73%;left:5%">Dundas St W</div>
+      <div class="map-label" style="top:5%;left:23%;transform:rotate(90deg);transform-origin:left top">Spadina Ave</div>
+      <div class="map-label" style="top:5%;left:48%;transform:rotate(90deg);transform-origin:left top">Bay St</div>
+      <div class="map-label" style="top:5%;left:73%;transform:rotate(90deg);transform-origin:left top">Yonge St</div>
+      <div id="placed-buildings"></div>
+      <div class="map-cursor-hint" id="map-hint">Click to place building</div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="proto-right" id="right-builder">
+      <div class="proto-right-header">
+        <div class="status-dot" id="status-dot" style="background:var(--muted);box-shadow:none"></div>
+        AI Impact Analysis
+      </div>
+      <div id="impact-placeholder" class="placeholder-state">
+        <div class="icon">🤖</div>
+        <div style="font-size:13px;font-weight:500">Place a building then click Analyze</div>
+        <div style="font-size:12px">NeMoTron will assess environmental, economic, and infrastructure impact</div>
+      </div>
+      <div class="impact-list" id="impact-results" style="display:none"></div>
+    </div>
+
+    <div class="proto-right" id="right-public" style="display:none">
+      <div class="proto-right-header">💬 Citizen AI Assistant</div>
+      <div class="chat-messages" id="chat-messages">
+        <div class="msg bot">Hello! I can answer questions about any development in Toronto. Select a building on the map, or ask me anything about urban development in the city.</div>
+        <div class="chip-row">
+          <div class="chip" onclick="askChat(this.textContent)">What's being built near me?</div>
+          <div class="chip" onclick="askChat(this.textContent)">Will this raise my rent?</div>
+          <div class="chip" onclick="askChat(this.textContent)">Economic impact of 100 King W?</div>
+        </div>
+      </div>
+      <div class="chat-input-row">
+        <input class="chat-input" id="chat-input" placeholder="Ask about any development..." onkeydown="if(event.key==='Enter')sendChat()">
+        <button class="chat-send" onclick="sendChat()">→</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="notice info" style="margin-top:20px">
+    <span>ℹ️</span>
+    <span>This prototype simulates the UI/UX only. The production app uses Mapbox GL JS for the map with real Toronto geospatial data, and NVIDIA NeMoTron on DGX Spark for all AI responses.</span>
+  </div>
+</div>
+
+<script>
+  // NAV
+  document.getElementById('nav').addEventListener('click', e => {
+    if (e.target.tagName !== 'BUTTON') return;
+    document.querySelectorAll('nav button').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+    e.target.classList.add('active');
+    document.getElementById('tab-' + e.target.dataset.tab).classList.add('active');
+  });
+
+  // PROTOTYPE STATE
+  let mode = 'builder';
+  let placedBuilding = null;
+  let buildings = [
+    { id: 1, name: '100 King St W', type: 'Mixed-Use', floors: 48, x: 52, y: 32, status: 'Under Review' },
+    { id: 2, name: '320 Spadina Ave', type: 'Residential', floors: 32, x: 28, y: 50, status: 'Approved' },
+    { id: 3, name: '890 Bay St', type: 'Commercial Office', floors: 55, x: 50, y: 55, status: 'Under Construction' },
+    { id: 4, name: '45 Dundas W', type: 'Mixed-Use', floors: 20, x: 38, y: 75, status: 'Under Review' },
+  ];
+
+  function switchMode(m) {
+    mode = m;
+    document.getElementById('btn-builder').classList.toggle('active', m === 'builder');
+    document.getElementById('btn-public').classList.toggle('active', m === 'public');
+    document.getElementById('sidebar-builder').style.display = m === 'builder' ? 'flex' : 'none';
+    document.getElementById('sidebar-public').style.display = m === 'public' ? 'flex' : 'none';
+    document.getElementById('right-builder').style.display = m === 'builder' ? 'flex' : 'none';
+    document.getElementById('right-public').style.display = m === 'public' ? 'flex' : 'none';
+    document.getElementById('proto-map').style.cursor = m === 'builder' ? 'crosshair' : 'pointer';
+    document.getElementById('map-hint').textContent = m === 'builder' ? 'Click to place building' : 'Click a building to explore';
+    renderPublicMarkers();
+    renderBuildingList();
+  }
+
+  function renderPublicMarkers() {
+    const pb = document.getElementById('placed-buildings');
+    const existing = pb.querySelectorAll('.existing-marker');
+    existing.forEach(e => e.remove());
+    if (mode === 'public') {
+      buildings.forEach(b => {
+        const el = document.createElement('div');
+        el.className = 'building-marker existing-marker';
+        el.style.left = b.x + '%';
+        el.style.top = b.y + '%';
+        el.innerHTML = `<div class="building-dot existing" title="${b.name}"></div>`;
+        el.onclick = (e) => { e.stopPropagation(); selectBuilding(b); };
+        pb.appendChild(el);
+      });
+    }
+  }
+
+  function renderBuildingList() {
+    const list = document.getElementById('bldg-list');
+    list.innerHTML = '';
+    buildings.forEach(b => {
+      const el = document.createElement('div');
+      el.style.cssText = 'background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px;margin-bottom:6px;cursor:pointer;';
+      el.innerHTML = `<div style="font-size:12px;font-weight:600;margin-bottom:3px">${b.name}</div><div style="font-size:11px;color:var(--muted)">${b.type} · ${b.floors}F</div><div style="margin-top:4px"><span class="tag ${b.status==='Approved'?'green':b.status==='Under Construction'?'blue':''}" style="font-size:10px">${b.status}</span></div>`;
+      el.onclick = () => selectBuilding(b);
+      list.appendChild(el);
+    });
+  }
+
+  function selectBuilding(b) {
+    const msgs = document.getElementById('chat-messages');
+    const botMsg = document.createElement('div');
+    botMsg.className = 'msg bot';
+    botMsg.innerHTML = `<strong>${b.name}</strong> is a ${b.floors}-storey ${b.type} development currently <em>${b.status}</em>. This development will add approximately ${b.floors * 8} residents to the area and is expected to increase pedestrian traffic by 18% on nearby blocks. What would you like to know about it?`;
+    msgs.appendChild(botMsg);
+    const chips = document.createElement('div');
+    chips.className = 'chip-row';
+    chips.innerHTML = `<div class="chip" onclick="askChat('How will this affect property values?')">Property values?</div><div class="chip" onclick="askChat('What are the traffic implications?')">Traffic impact?</div><div class="chip" onclick="askChat('What community amenities are included?')">Amenities?</div>`;
+    msgs.appendChild(chips);
+    msgs.scrollTop = msgs.scrollHeight;
+  }
+
+  function handleMapClick(e) {
+    if (mode !== 'builder') return;
+    const map = document.getElementById('proto-map');
+    const rect = map.getBoundingClientRect();
+    const x = ((e.clientX - rect.left) / rect.width * 100).toFixed(1);
+    const y = ((e.clientY - rect.top) / rect.height * 100).toFixed(1);
+    placedBuilding = { x, y };
+
+    const pb = document.getElementById('placed-buildings');
+    const prev = pb.querySelector('.builder-marker');
+    if (prev) prev.remove();
+
+    const el = document.createElement('div');
+    el.className = 'building-marker builder-marker';
+    el.style.left = x + '%';
+    el.style.top = y + '%';
+    el.innerHTML = '<div class="building-dot builder"></div>';
+    pb.appendChild(el);
+    document.getElementById('map-hint').textContent = '✓ Building placed — click Analyze Impact';
+  }
+
+  function clearBuilding() {
+    placedBuilding = null;
+    const pb = document.getElementById('placed-buildings');
+    const prev = pb.querySelector('.builder-marker');
+    if (prev) prev.remove();
+    document.getElementById('impact-placeholder').style.display = 'flex';
+    document.getElementById('impact-results').style.display = 'none';
+    document.getElementById('status-dot').style.background = 'var(--muted)';
+    document.getElementById('status-dot').style.boxShadow = 'none';
+    document.getElementById('map-hint').textContent = 'Click to place building';
+  }
+
+  const impactData = [
+    { name: 'Environmental', score: null, color: '#76b900', genScore: () => Math.floor(40 + Math.random()*40), genDesc: (f,fp) => `Est. ${Math.floor(fp/10)} trees displaced. Shadow cast across ${Math.floor(fp*f*0.0003).toFixed(1)}k m² of adjacent lots. Carbon embodied in construction: ${Math.floor(f*120)}t CO₂e.` },
+    { name: 'Traffic Load', score: null, color: '#f5a623', genScore: () => Math.floor(35 + Math.random()*50), genDesc: (f) => `Est. +${f*14} daily vehicle trips to nearby intersections. King & Spadina intersection projected to increase from LOS C → LOS D during peak hours.` },
+    { name: 'Economic Impact', score: null, color: '#00a3ff', genScore: () => Math.floor(50 + Math.random()*45), genDesc: (f) => `~${f*8} new residents add ~$${(f*8*3200/1000).toFixed(0)}K/yr to local retail. Property values within 300m projected +4–9% over 5 years post-completion.` },
+    { name: 'Infrastructure', score: null, color: '#a78bfa', genScore: () => Math.floor(30 + Math.random()*55), genDesc: (f,fp) => `Estimated water demand: +${Math.floor(f*8*220)} L/day. TTC Line 1 at nearby stops will see +${Math.floor(f*3)} daily boardings. Parking demand: +${Math.floor(f*0.4)} spaces needed.` },
+    { name: 'Housing Supply', score: null, color: '#34d399', genScore: () => Math.floor(60 + Math.random()*35), genDesc: (f,_,u) => `Adds ${f*u} units to city supply. Neighbourhood currently has a vacancy rate of 0.7%. This development addresses ~${Math.floor(f*u*0.8)} units of unmet demand.` },
+  ];
+
+  function runAnalysis() {
+    if (!placedBuilding) {
+      document.getElementById('map-hint').textContent = '⚠️ Place a building on the map first';
+      return;
+    }
+    const floors = parseInt(document.getElementById('floor-slider').value);
+    const fp = parseInt(document.getElementById('fp-slider').value);
+    const units = parseInt(document.getElementById('unit-slider').value);
+
+    const dot = document.getElementById('status-dot');
+    dot.style.background = 'var(--warn)';
+    dot.style.boxShadow = '0 0 6px var(--warn)';
+
+    document.getElementById('impact-placeholder').style.display = 'none';
+    document.getElementById('impact-results').style.display = 'flex';
+    const results = document.getElementById('impact-results');
+    results.innerHTML = '<div style="color:var(--muted);font-size:12px;padding:8px">⚡ Querying NeMoTron on DGX Spark...</div>';
+
+    setTimeout(() => {
+      dot.style.background = 'var(--green)';
+      dot.style.boxShadow = '0 0 6px var(--green)';
+      results.innerHTML = '';
+
+      impactData.forEach((d, i) => {
+        const score = d.genScore();
+        const desc = d.genDesc(floors, fp, units);
+        const scoreColor = score > 65 ? '#ff6b6b' : score > 40 ? '#f5a623' : '#76b900';
+
+        const item = document.createElement('div');
+        item.className = 'impact-item';
+        item.style.opacity = '0';
+        item.style.transform = 'translateY(8px)';
+        item.innerHTML = `
+          <div class="impact-header">
+            <div class="impact-name">${d.name}</div>
+            <div class="impact-score" style="color:${scoreColor}">${score}/100</div>
+          </div>
+          <div class="impact-bar-bg"><div class="impact-bar" style="width:0%;background:${scoreColor}"></div></div>
+          <div class="impact-desc">${desc}</div>`;
+        results.appendChild(item);
+
+        setTimeout(() => {
+          item.style.transition = 'opacity 0.3s, transform 0.3s';
+          item.style.opacity = '1';
+          item.style.transform = 'none';
+          setTimeout(() => { item.querySelector('.impact-bar').style.width = score + '%'; }, 100);
+        }, i * 120);
+      });
+    }, 1400);
+  }
+
+  const chatResponses = {
+    'How will this affect property values?': 'Based on comparable developments in the neighbourhood, properties within 300m typically see a 4–9% appreciation in the 3 years post-completion due to neighbourhood density gains and improved walkability scores. Commercial ground-floor units may see increased demand as foot traffic grows.',
+    'What are the traffic implications?': 'The development adds an estimated 1,200+ daily vehicle trips. The intersection at King & Spadina is currently operating at Level of Service C — this pushes it toward D during AM/PM peak. The AI recommends a traffic signal timing review and expanded TTC frequency on the 504 route.',
+    'What community amenities are included?': 'Per the development application, the podium includes 600m² of publicly accessible retail space, a 200m² community room, and Section 37 contributions toward a nearby park upgrade. No childcare facilities are included in the current plan.',
+    'Will this raise my rent?': 'Adding high-density supply to a tight rental market has mixed effects. Short-term: increased construction worker activity can raise demand locally. Long-term: additional 400 units adds supply which typically moderates rent growth vs. no development. Your specific rent depends on your lease terms.',
+    'What\'s being built near me?': 'There are currently 4 active development applications in the downtown core. The largest is 890 Bay St (55 storeys, commercial office). In the west end, 320 Spadina Ave (32 storeys, residential) was approved last month. Would you like details on any specific project?',
+    'Economic impact of 100 King W?': '100 King St W is a 48-storey mixed-use development. Economic projections: 380 permanent jobs (retail + office), ~$2.3M annual retail spending injected into the local economy, and an estimated $18M increase in the city\'s assessment roll upon completion.',
+  };
+
+  function sendChat() {
+    const input = document.getElementById('chat-input');
+    const q = input.value.trim();
+    if (!q) return;
+    askChat(q);
+    input.value = '';
+  }
+
+  function askChat(q) {
+    const msgs = document.getElementById('chat-messages');
+    const userMsg = document.createElement('div');
+    userMsg.className = 'msg user';
+    userMsg.textContent = q;
+    msgs.appendChild(userMsg);
+    msgs.scrollTop = msgs.scrollHeight;
+
+    setTimeout(() => {
+      const botMsg = document.createElement('div');
+      botMsg.className = 'msg bot';
+      botMsg.textContent = chatResponses[q] || `Great question. Based on Toronto Open Data and the NeMoTron analysis for this area, the projected impact is moderate with manageable infrastructure demand. The zoning is compatible and the development is within the Official Plan's density targets for this corridor. Would you like a detailed breakdown?`;
+      msgs.appendChild(botMsg);
+      msgs.scrollTop = msgs.scrollHeight;
+    }, 900);
+  }
+
+  // Init public mode markers (hidden until mode switch)
+  renderPublicMarkers();
+  renderBuildingList();
+</script>
+</body>
+</html>
