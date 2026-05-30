@@ -63,8 +63,19 @@ def train_energy(df: pd.DataFrame):
         return
 
     rows = pd.read_parquet(ewrb_path)
-    rows["floor_area_m2"]          = pd.to_numeric(rows["floor_area_m2"],          errors="coerce")
-    rows["annual_electricity_kwh"] = pd.to_numeric(rows["annual_electricity_kwh"], errors="coerce")
+
+    # Omar's 2024 EWRB format: usage_electric_grid + floor_area_sqft
+    # Old format (2015-2020): annual_electricity_kwh + floor_area_m2
+    if "usage_electric_grid" in rows.columns:
+        rows["annual_electricity_kwh"] = pd.to_numeric(rows["usage_electric_grid"], errors="coerce")
+        # floor_area_sqft → m² (1 sqft = 0.0929 m²)
+        rows["floor_area_m2"] = pd.to_numeric(rows["floor_area_sqft"], errors="coerce") * 0.0929
+        print("  Using Omar's 2024 EWRB format (usage_electric_grid + floor_area_sqft)")
+    else:
+        rows["annual_electricity_kwh"] = pd.to_numeric(rows.get("annual_electricity_kwh", pd.Series(dtype=float)), errors="coerce")
+        rows["floor_area_m2"] = pd.to_numeric(rows.get("floor_area_m2", pd.Series(dtype=float)), errors="coerce")
+        print("  Using legacy EWRB format (annual_electricity_kwh + floor_area_m2)")
+
     rows = rows.dropna(subset=["floor_area_m2", "annual_electricity_kwh"])
     rows = rows[(rows["floor_area_m2"] > 0) & (rows["annual_electricity_kwh"] > 0)].copy()
 

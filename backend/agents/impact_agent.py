@@ -34,19 +34,48 @@ Score meaning: 0 = minimal impact, 100 = extreme impact. Be specific and cite nu
 
 
 async def run_impact_analysis(building: dict, spatial_context: dict) -> dict:
+    traffic = spatial_context.get("traffic_intersections", [])
+    trees   = spatial_context.get("street_trees", [])
+    stops   = spatial_context.get("ttc_stops", [])
+    bizs    = spatial_context.get("businesses", [])
+    parks   = spatial_context.get("parks", [])
+    zoning  = spatial_context.get("zoning", [])
+    zh      = spatial_context.get("zoning_height")
+    hood    = spatial_context.get("neighbourhood")
+
+    # Aggregate real traffic numbers for the prompt
+    total_vehicles = sum(t.get("total_vehicle", 0) or 0 for t in traffic)
+    am_peak = sum(t.get("am_peak_vehicle", 0) or 0 for t in traffic)
+    pm_peak = sum(t.get("pm_peak_vehicle", 0) or 0 for t in traffic)
+
     user_prompt = f"""
 Building Specifications:
 {json.dumps(building, indent=2)}
 
-Nearby Context (within 500m):
-- Traffic intersections: {len(spatial_context.get('traffic_intersections', []))} found
-  {json.dumps(spatial_context.get('traffic_intersections', [])[:3], indent=2)}
-- TTC stops: {len(spatial_context.get('ttc_stops', []))} found
-  {json.dumps(spatial_context.get('ttc_stops', [])[:3], indent=2)}
-- Street trees: {len(spatial_context.get('street_trees', []))} found
-- Businesses: {len(spatial_context.get('businesses', []))} found
-- Parks: {json.dumps(spatial_context.get('parks', [])[:2], indent=2)}
-- Zoning: {json.dumps(spatial_context.get('zoning', [])[:1], indent=2)}
+Neighbourhood Context:
+{json.dumps(hood, indent=2) if hood else "Not available"}
+
+Zoning:
+- Land use: {json.dumps(zoning[:1], indent=2)}
+- Height overlay: {json.dumps(zh, indent=2) if zh else "No height overlay found"}
+
+Traffic (within 500m, {len(traffic)} intersections):
+- Total daily vehicle volume: {total_vehicles:,}
+- AM peak vehicles: {am_peak:,}
+- PM peak vehicles: {pm_peak:,}
+- Sample intersections: {json.dumps(traffic[:3], indent=2)}
+
+Transit:
+- TTC stops within 500m: {len(stops)}
+- Nearest stops: {json.dumps(stops[:3], indent=2)}
+
+Environment:
+- Street trees within 500m: {len(trees)} (species sample: {[t.get('common_name') for t in trees[:5]]})
+- Parks: {json.dumps(parks[:2], indent=2)}
+
+Economy:
+- Active businesses within 500m: {len(bizs)}
+- Business categories: {list(set(b.get('Category','') for b in bizs[:20] if b.get('Category')))}
 
 Produce the impact assessment JSON.
 """
