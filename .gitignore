@@ -216,3 +216,20 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# UrbanForge — downloaded data files (large, reproducible via data_pipeline.py)
+data/*.parquet
+data/*.tif
+data/*.tiff
+
+# Trained ML model artifacts (reproducible via train_models.py)
+backend/models/*.pkl
+backend/models/*.json
+
+# Frontend
+frontend/node_modules/
+frontend/.next/
+frontend/.env.local
+
+# Docker
+.docker/

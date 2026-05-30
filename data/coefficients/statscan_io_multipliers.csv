@@ -1,0 +1,6 @@
+sector,province,gdp_multiplier_per_1m_cad,employment_person_years_per_1m_cad,source_year,notes
+residential_construction,Ontario,1.71,8.2,2021,StatsCan Input-Output Multipliers Table 381-0031
+commercial_construction,Ontario,1.68,7.1,2021,StatsCan Input-Output Multipliers Table 381-0031
+industrial_construction,Ontario,1.62,5.8,2021,StatsCan Input-Output Multipliers Table 381-0031
+mixed_use_construction,Ontario,1.70,7.8,2021,Blended average residential/commercial
+infrastructure_construction,Ontario,1.75,8.9,2021,StatsCan Input-Output Multipliers Table 381-0031

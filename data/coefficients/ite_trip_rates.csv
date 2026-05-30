@@ -1,0 +1,9 @@
+building_type,ite_code,daily_trips_per_1000sqft,peak_am_per_1000sqft,peak_pm_per_1000sqft,source
+residential,220,6.65,0.35,0.44,ITE Trip Generation 11th Ed (per unit: 6.65/unit residential mid-rise)
+commercial_office,710,11.03,1.56,1.49,ITE Trip Generation 11th Ed
+retail_general,820,42.70,1.03,4.24,ITE Trip Generation 11th Ed
+industrial_general,110,6.97,0.97,0.86,ITE Trip Generation 11th Ed
+mixed_use,230,10.50,0.65,0.78,ITE Mixed-Use Trip Generation (blended estimate)
+hotel,310,8.70,0.54,0.60,ITE Trip Generation 11th Ed
+supermarket,850,102.24,8.00,9.48,ITE Trip Generation 11th Ed
+fast_food,934,496.12,34.64,26.61,ITE Trip Generation 11th Ed
