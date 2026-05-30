@@ -57,31 +57,29 @@ def _load_permits() -> pd.DataFrame:
 def train_energy(df: pd.DataFrame):
     print("\n=== Model 1: Energy / Utility ===")
 
-    # EWRB data corrupted — use permits with ASHRAE benchmarks as synthetic targets
-    ENERGY_INTENSITY = {   # kWh/m²/year by use type (NRCan benchmarks)
-        "RESIDENTIAL": 130,
-        "ASSEMBLY": 250,
-        "INSTITUTIONAL": 280,
-        "BUSINESS_AND_PERSONAL_SERVICES": 200,
-        "MERCANTILE": 320,
-        "INDUSTRIAL": 180,
-    }
-
-    rows = df[(df["total_gfa_m2"] > 50) & df["EST_CONST_COST"].notna()].copy()
-    if len(rows) < 100:
-        print("  SKIP: insufficient data")
+    ewrb_path = DATA_DIR / "ewrb_energy.parquet"
+    if not ewrb_path.exists():
+        print("  SKIP: ewrb_energy.parquet not found — run data_pipeline.py first")
         return
 
-    # Weighted energy intensity from GFA mix
-    def _energy(row):
-        total = row["total_gfa_m2"] or 1
-        return sum(ENERGY_INTENSITY[c] * row[c] / total for c in GFA_COLS) * row["total_gfa_m2"]
+    rows = pd.read_parquet(ewrb_path)
+    rows["floor_area_m2"]          = pd.to_numeric(rows["floor_area_m2"],          errors="coerce")
+    rows["annual_electricity_kwh"] = pd.to_numeric(rows["annual_electricity_kwh"], errors="coerce")
+    rows = rows.dropna(subset=["floor_area_m2", "annual_electricity_kwh"])
+    rows = rows[(rows["floor_area_m2"] > 0) & (rows["annual_electricity_kwh"] > 0)].copy()
 
-    rows["annual_kwh_est"] = rows.apply(_energy, axis=1)
-    rows = rows[rows["annual_kwh_est"] > 0]
+    if len(rows) < 50:
+        print(f"  SKIP: only {len(rows)} rows after filtering")
+        return
 
-    X = rows[["total_gfa_m2", "structure_type_enc", "EST_CONST_COST"] + GFA_COLS].fillna(0)
-    y = np.log1p(rows["annual_kwh_est"])
+    le = LabelEncoder()
+    rows["building_type_enc"] = le.fit_transform(
+        rows["building_type"].fillna("Unknown").astype(str)
+    )
+    rows["kwh_per_m2"] = rows["annual_electricity_kwh"] / rows["floor_area_m2"]
+
+    X = rows[["floor_area_m2", "building_type_enc"]].fillna(0)
+    y = np.log1p(rows["annual_electricity_kwh"])
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     model = xgb.XGBRegressor(n_estimators=200, max_depth=5, learning_rate=0.1,
@@ -93,8 +91,9 @@ def train_energy(df: pd.DataFrame):
 
     _save_model(model, "energy_model", {
         "features": list(X.columns),
-        "target": "log1p_annual_kwh_est",
-        "ashrae_benchmarks_kwh_per_m2": ENERGY_INTENSITY,
+        "target": "log1p_annual_electricity_kwh",
+        "source": "Toronto EWRB real measurements",
+        "building_type_classes": list(le.classes_),
         "mae": round(mae, 4), "r2": round(r2, 4),
     })
 

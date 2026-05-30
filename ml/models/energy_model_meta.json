@@ -1,24 +1,33 @@
 {
   "features": [
-    "total_gfa_m2",
-    "structure_type_enc",
-    "EST_CONST_COST",
-    "ASSEMBLY",
-    "INSTITUTIONAL",
-    "RESIDENTIAL",
-    "BUSINESS_AND_PERSONAL_SERVICES",
-    "MERCANTILE",
-    "INDUSTRIAL"
+    "floor_area_m2",
+    "building_type_enc"
   ],
-  "target": "log1p_annual_kwh_est",
-  "ashrae_benchmarks_kwh_per_m2": {
-    "RESIDENTIAL": 130,
-    "ASSEMBLY": 250,
-    "INSTITUTIONAL": 280,
-    "BUSINESS_AND_PERSONAL_SERVICES": 200,
-    "MERCANTILE": 320,
-    "INDUSTRIAL": 180
-  },
-  "mae": 0.0117,
-  "r2": 0.9992
+  "target": "log1p_annual_electricity_kwh",
+  "source": "Toronto EWRB real measurements",
+  "building_type_classes": [
+    "Administrative offices and related facilities, including municipal council chambers",
+    "Ambulance stations and associated offices and facilities",
+    "Community centres",
+    "Cultural facilities",
+    "Facilities related to the pumping of sewage",
+    "Facilities related to the pumping of water",
+    "Facilities related to the treatment of sewage",
+    "Facilities related to the treatment of water",
+    "Fire stations and associated offices and facilities",
+    "Indoor recreational facilities",
+    "Indoor sports arenas",
+    "Indoor swimming pools",
+    "Long-term care",
+    "Other",
+    "Parking garages",
+    "Performing arts facilities",
+    "Police stations and associated offices and facilities",
+    "Public libraries",
+    "Social housing",
+    "Storage facilities where equipment or vehicles are maintained, repaired or stored",
+    "Street lighting"
+  ],
+  "mae": 1.1496,
+  "r2": 0.4709
 }

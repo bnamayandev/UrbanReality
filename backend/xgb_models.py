@@ -109,16 +109,28 @@ def _row_to_array(row: dict, feature_list: list) -> np.ndarray:
 
 
 def predict_energy(building: dict) -> dict | None:
-    """Returns predicted annual kWh and a 0-100 environmental impact score."""
+    """Returns predicted annual kWh from real EWRB data and a 0-100 environmental score."""
     if _m.energy is None:
         return None
     try:
         meta = _m.meta.get("energy_model", {})
         row  = _build_feature_row(building)
-        X    = _row_to_array(row, meta.get("features", list(row.keys())))
+
+        # Energy model uses only floor_area_m2 + building_type_enc
+        btype = building.get("type", "residential").lower()
+        dominant_col = TYPE_TO_GFA.get(btype, "RESIDENTIAL")
+        type_enc_map = {"RESIDENTIAL": 0, "BUSINESS_AND_PERSONAL_SERVICES": 1,
+                        "MERCANTILE": 2, "INDUSTRIAL": 3, "ASSEMBLY": 4, "INSTITUTIONAL": 5}
+        feature_row = {
+            "floor_area_m2":     row["total_gfa_m2"],
+            "building_type_enc": float(type_enc_map.get(dominant_col, 0)),
+        }
+        features = meta.get("features", ["floor_area_m2", "building_type_enc"])
+        X = _row_to_array(feature_row, features)
+
         log_kwh = float(_m.energy.predict(X)[0])
         kwh = np.expm1(log_kwh)
-        gfa  = row["total_gfa_m2"]
+        gfa = row["total_gfa_m2"]
         intensity = kwh / max(gfa, 1)
         score = min(100, int(intensity / 3))   # ~300 kWh/m² → score 100
         return {
@@ -126,9 +138,9 @@ def predict_energy(building: dict) -> dict | None:
             "annual_kwh": round(kwh),
             "intensity_kwh_per_m2": round(intensity, 1),
             "description": (
-                f"Predicted annual energy consumption: {kwh/1000:.0f} MWh "
-                f"({intensity:.0f} kWh/m²). "
-                f"{'Above' if intensity > 200 else 'Within'} Toronto EWRB benchmark for this building type."
+                f"Predicted annual electricity: {kwh/1000:.0f} MWh "
+                f"({intensity:.0f} kWh/m²) — trained on {meta.get('source', 'Toronto EWRB')} data. "
+                f"{'Above' if intensity > 200 else 'Within'} Toronto benchmark for this building type."
             ),
         }
     except Exception as e:

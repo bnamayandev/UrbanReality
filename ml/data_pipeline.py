@@ -9,6 +9,7 @@ Everything is cached - re-running skips already-downloaded files.
 Set FORCE_REFRESH=1 to re-download everything.
 """
 
+import io
 import os
 import sys
 from pathlib import Path
@@ -28,7 +29,7 @@ FORCE = os.getenv("FORCE_REFRESH", "0") == "1"
 
 # Add ml/ to path so fetch.py is importable
 sys.path.insert(0, str(Path(__file__).parent))
-from fetch import fetch, fetch_gtfs_stops, fetch_csv_with_latlon, download_raster
+from fetch import fetch, fetch_gtfs_stops, fetch_csv_with_latlon, download_raster, _package, _last_modified, _SSL
 
 
 def _save(name: str, data: gpd.GeoDataFrame | pd.DataFrame, last_mod: str):
@@ -226,12 +227,62 @@ EWRB_RENAME = {
 }
 
 
+def _parse_ewrb_xlsx(raw: bytes) -> pd.DataFrame | None:
+    """Parse one EWRB Excel file — handles both the multi-level older format and the newer flat format."""
+    try:
+        # Try multi-level header (2015–2020 format)
+        df = pd.read_excel(io.BytesIO(raw), engine="openpyxl", header=[5, 6, 7])
+        cols = df.columns.tolist()
+
+        floor_col  = next((c for c in cols if "Total Floor Area" in str(c[0])), None)
+        type_col   = next((c for c in cols if "Operation Type"   in str(c[0])), None)
+        elec_col   = next((c for c in cols if "Electricity" in str(c) and "Quantity" in str(c)), None)
+        gas_col    = next((c for c in cols if "Natural Gas"  in str(c) and "Quantity" in str(c)), None)
+
+        if elec_col is None or floor_col is None:
+            return None
+
+        out = pd.DataFrame({
+            "building_type":        df[type_col].values  if type_col  else "Unknown",
+            "floor_area_m2":        pd.to_numeric(df[floor_col], errors="coerce"),
+            "annual_electricity_kwh": pd.to_numeric(df[elec_col],  errors="coerce"),
+            "annual_gas_m3":        pd.to_numeric(df[gas_col],   errors="coerce") if gas_col else None,
+        })
+        out = out.dropna(subset=["floor_area_m2", "annual_electricity_kwh"])
+        out = out[(out["floor_area_m2"] > 0) & (out["annual_electricity_kwh"] > 0)]
+        return out
+    except Exception:
+        return None
+
+
 def dl_ewrb():
     if cached("ewrb_energy"):
         return
     try:
-        df, lm = fetch("annual-energy-consumption", prefer="csv")
-        df = df.rename(columns={k: v for k, v in EWRB_RENAME.items() if k in df.columns})
+        import requests as _req
+        pkg = _package("annual-energy-consumption")
+        lm  = _last_modified(pkg)
+        frames = []
+        for res in pkg["resources"]:
+            name = res.get("name", "")
+            fmt  = res.get("format", "").lower()
+            url  = res.get("url", "")
+            if fmt == "xlsx" and "data" in name.lower() and url:
+                try:
+                    raw   = _req.get(url, timeout=120, verify=_SSL).content
+                    parsed = _parse_ewrb_xlsx(raw)
+                    if parsed is not None and len(parsed) > 0:
+                        frames.append(parsed)
+                        print(f"    [ewrb] {name}: {len(parsed)} usable rows")
+                    else:
+                        print(f"    [ewrb] {name}: skipped (no parseable energy data)")
+                except Exception as e2:
+                    print(f"    [ewrb] WARNING skipping {name}: {e2}")
+
+        if not frames:
+            raise ValueError("No usable EWRB data found across all years")
+
+        df = pd.concat(frames, ignore_index=True)
         _save("ewrb_energy", df, lm)
     except Exception as e:
         print(f"    WARNING: ewrb_energy failed ({e})")
