@@ -50,7 +50,7 @@ fi
 # Install node_modules if missing
 if [ ! -d "$REPO/frontend/node_modules" ]; then
   echo "      Installing npm deps..."
-  cd "$REPO/frontend" && npm install --silent
+  cd "$REPO/frontend" && npm install
 fi
 
 tmux new-session -d -s frontend \
