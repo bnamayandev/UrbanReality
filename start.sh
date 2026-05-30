@@ -27,6 +27,8 @@ fi
 # ── 3. Backend ───────────────────────────────────────────────────────────────
 echo "[3/5] Starting backend (port 8001)..."
 tmux kill-session -t backend 2>/dev/null || true
+fuser -k 8001/tcp 2>/dev/null || true
+sleep 1
 tmux new-session -d -s backend \
   "cd $REPO/backend && source $VENV/bin/activate && uvicorn main:app --host 0.0.0.0 --port 8001"
 sleep 4
