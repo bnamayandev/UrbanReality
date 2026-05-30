@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-NEMORON_URL = os.getenv("NEMORON_URL", "http://localhost:8000")
+NEMORON_URL = os.getenv("NEMORON_URL", "http://localhost:11434")
 
 SYSTEM_PROMPT = """You are UrbanForge's citizen assistant for Toronto urban development.
 You have access to real development data and Toronto Open Data.

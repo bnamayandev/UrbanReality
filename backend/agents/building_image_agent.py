@@ -29,7 +29,7 @@ load_dotenv()
 
 # ── LLM client (reuses NEMORON_URL from .env) ─────────────────────────────────
 _llm = ChatOpenAI(
-    base_url=os.getenv("NEMORON_URL", "http://localhost:8001") + "/v1",
+    base_url=os.getenv("NEMORON_URL", "http://localhost:11434") + "/v1",
     api_key=os.getenv("NGC_API_KEY", "placeholder"),
     model=os.getenv("MODEL_NAME", "qwen3"),
     temperature=0,

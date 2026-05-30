@@ -10,7 +10,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-NEMORON_URL = os.getenv("NEMORON_URL", "http://localhost:8000")
+NEMORON_URL = os.getenv("NEMORON_URL", "http://localhost:11434")
 
 SYSTEM_PROMPT = """You are an urban planning AI analyst for the city of Toronto.
 Given a proposed building's specifications and nearby geospatial context data,
