@@ -9,3 +9,9 @@ pydantic-settings
 python-dotenv
 httpx
 websockets
+geopandas
+pyarrow
+rasterio
+langgraph
+openai
+pillow

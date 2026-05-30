@@ -53,13 +53,15 @@ def cached(name: str) -> bool:
 def dl_street_trees():
     if cached("street_trees"):
         return
-    # Street tree dataset is CSV-only (no GeoJSON resource) with LATITUDE/LONGITUDE columns
-    gdf, lm = fetch_csv_with_latlon(
-        "street-tree-data",
-        lat_col="LATITUDE", lon_col="LONGITUDE",
-        extra_cols=["DBH_TRUNK", "COMMON_NAME", "SPECIES_DESC"],
-    )
-    gdf = gdf.rename(columns={"DBH_TRUNK": "dbh_trunk", "COMMON_NAME": "common_name", "SPECIES_DESC": "species"})
+    # Dataset has a WKT geometry column — use fetch() directly
+    gdf, lm = fetch("street-tree-data", prefer="geojson")
+    rename = {}
+    col_upper = {c.upper(): c for c in gdf.columns}
+    for src, dst in [("DBH_TRUNK", "dbh_trunk"), ("COMMON_NAME", "common_name"),
+                     ("BOTANICAL_NAME", "species"), ("SPECIES_DESC", "species")]:
+        if src in col_upper:
+            rename[col_upper[src]] = dst
+    gdf = gdf.rename(columns=rename)
     _save("street_trees", gdf, lm)
 
 

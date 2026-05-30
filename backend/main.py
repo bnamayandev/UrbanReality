@@ -2,7 +2,8 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine, Base
-from routers import buildings, chat
+from routers import buildings, chat, images
+from spatial import layers_status
 
 # Create all tables on startup
 Base.metadata.create_all(bind=engine)
@@ -18,8 +19,9 @@ app.add_middleware(
 
 app.include_router(buildings.router)
 app.include_router(chat.router)
+app.include_router(images.router)
 
 
 @app.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "ok", "spatial_layers": layers_status()}
