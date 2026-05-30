@@ -9,3 +9,7 @@ pydantic-settings
 python-dotenv
 httpx
 websockets
+Pillow
+langgraph
+langchain
+langchain-openai

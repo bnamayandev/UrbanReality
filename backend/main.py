@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from database import engine, Base
-from routers import buildings, chat
+from routers import buildings, chat, generate
 
 # Create all tables on startup
 Base.metadata.create_all(bind=engine)
@@ -18,6 +18,7 @@ app.add_middleware(
 
 app.include_router(buildings.router)
 app.include_router(chat.router)
+app.include_router(generate.router)
 
 
 @app.get("/health")
