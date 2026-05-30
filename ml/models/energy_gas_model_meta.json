@@ -2,7 +2,7 @@
   "features": [
     "building_type_enc"
   ],
-  "target": "log1p_elec_intensity_kwh_per_m2",
+  "target": "log1p_gas_intensity_kwh_per_m2",
   "source": "Ontario EWRB (private) + Toronto EWRB (municipal)",
   "building_type_classes": [
     "College/University",
@@ -66,6 +66,6 @@
     "Wholesale Club/Supercenter",
     "Worship Facility"
   ],
-  "mae": 0.5638,
-  "r2": 0.5134
+  "mae": 0.5134,
+  "r2": 0.4738
 }

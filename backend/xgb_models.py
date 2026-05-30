@@ -6,6 +6,7 @@ caller falls back to NeMoTron or the rule-based fallback.
 """
 
 import json
+import joblib
 import numpy as np
 from pathlib import Path
 
@@ -44,11 +45,23 @@ WORK_ENC = {
     "repair": 4, "renovation": 5, "other": 6,
 }
 
+# GFA column → Ontario EWRB building type name used during training.
+# These are PrimPropTypCalc values from the Ontario public EWRB release.
+_GFA_TO_EWRB = {
+    "RESIDENTIAL":                    "Multifamily Housing",
+    "BUSINESS_AND_PERSONAL_SERVICES":  "Office",
+    "MERCANTILE":                      "Retail Store",
+    "INDUSTRIAL":                      "Distribution Center",
+    "ASSEMBLY":                        "Other",
+    "INSTITUTIONAL":                   "Other",
+}
+
 
 class _Models:
-    energy:   "xgb.XGBRegressor | None" = None
-    traffic:  "xgb.XGBRegressor | None" = None
-    economic: "xgb.XGBRegressor | None" = None
+    energy:         "xgb.XGBRegressor | None" = None
+    energy_gas:     "xgb.XGBRegressor | None" = None
+    economic:       "xgb.XGBRegressor | None" = None
+    energy_encoder: object = None   # sklearn LabelEncoder loaded from .pkl
     meta: dict = {}
 
 
@@ -58,7 +71,8 @@ _m = _Models()
 def load_models():
     if not _XGB_AVAILABLE:
         return
-    for name in ("energy_model", "traffic_model", "economic_model"):
+    # Traffic is handled by the ITE calculator — no model file needed.
+    for name in ("energy_model", "economic_model"):
         path = MODEL_DIR / f"{name}.json"
         meta_path = MODEL_DIR / f"{name}_meta.json"
         if not path.exists():
@@ -72,6 +86,28 @@ def load_models():
             print(f"[xgb] Loaded {name}.json")
         except Exception as e:
             print(f"[xgb] WARNING: could not load {name}: {e}")
+
+    # Gas model (same feature schema as electricity model)
+    gas_path = MODEL_DIR / "energy_gas_model.json"
+    if gas_path.exists():
+        try:
+            model = xgb.XGBRegressor()
+            model.load_model(str(gas_path))
+            _m.energy_gas = model
+            gas_meta_path = MODEL_DIR / "energy_gas_model_meta.json"
+            if gas_meta_path.exists():
+                _m.meta["energy_gas_model"] = json.loads(gas_meta_path.read_text())
+            print("[xgb] Loaded energy_gas_model.json")
+        except Exception as e:
+            print(f"[xgb] WARNING: could not load energy_gas_model: {e}")
+
+    enc_path = MODEL_DIR / "energy_building_type_encoder.pkl"
+    if enc_path.exists():
+        try:
+            _m.energy_encoder = joblib.load(str(enc_path))
+            print(f"[xgb] Loaded energy_building_type_encoder.pkl")
+        except Exception as e:
+            print(f"[xgb] WARNING: could not load energy encoder: {e}")
 
 
 def _build_feature_row(building: dict) -> dict:
@@ -109,38 +145,74 @@ def _row_to_array(row: dict, feature_list: list) -> np.ndarray:
 
 
 def predict_energy(building: dict) -> dict | None:
-    """Returns predicted annual kWh from real EWRB data and a 0-100 environmental score."""
+    """
+    Predicts electricity and gas intensity (kWh/m²) then scales by GFA.
+    Trained on Ontario EWRB (private buildings) + Toronto EWRB (municipal).
+    Score: 0 = low energy use (good), 100 = high energy use (bad).
+    """
     if _m.energy is None:
         return None
     try:
         meta = _m.meta.get("energy_model", {})
         row  = _build_feature_row(building)
+        gfa  = row["total_gfa_m2"]
 
-        # Energy model uses only floor_area_m2 + building_type_enc
-        btype = building.get("type", "residential").lower()
+        btype        = building.get("type", "residential").lower()
         dominant_col = TYPE_TO_GFA.get(btype, "RESIDENTIAL")
-        type_enc_map = {"RESIDENTIAL": 0, "BUSINESS_AND_PERSONAL_SERVICES": 1,
-                        "MERCANTILE": 2, "INDUSTRIAL": 3, "ASSEMBLY": 4, "INSTITUTIONAL": 5}
-        feature_row = {
-            "floor_area_m2":     row["total_gfa_m2"],
-            "building_type_enc": float(type_enc_map.get(dominant_col, 0)),
-        }
-        features = meta.get("features", ["floor_area_m2", "building_type_enc"])
+        ewrb_type    = _GFA_TO_EWRB.get(dominant_col, "Other")
+
+        if _m.energy_encoder is not None:
+            enc      = _m.energy_encoder
+            classes  = list(enc.classes_)
+            target   = ewrb_type if ewrb_type in classes else "Office"
+            type_enc = float(enc.transform([target])[0])
+        else:
+            classes  = meta.get("building_type_classes", [])
+            target   = ewrb_type if ewrb_type in classes else (classes[0] if classes else "Other")
+            type_enc = float(classes.index(target)) if target in classes else 0.0
+
+        # Model predicts log1p(kWh/m²); multiply intensity × GFA for annual total
+        feature_row = {"building_type_enc": type_enc}
+        features    = meta.get("features", ["building_type_enc"])
         X = _row_to_array(feature_row, features)
 
-        log_kwh = float(_m.energy.predict(X)[0])
-        kwh = np.expm1(log_kwh)
-        gfa = row["total_gfa_m2"]
-        intensity = kwh / max(gfa, 1)
-        score = min(100, int(intensity / 3))   # ~300 kWh/m² → score 100
+        elec_intensity = float(np.expm1(float(_m.energy.predict(X)[0])))  # kWh/m²
+        kwh = elec_intensity * gfa
+
+        # Gas intensity prediction (same feature schema, no sanity gate needed)
+        gas_kwh_eq = 0.0
+        if _m.energy_gas is not None:
+            try:
+                gas_meta      = _m.meta.get("energy_gas_model", {})
+                Xg            = _row_to_array(feature_row, gas_meta.get("features", list(feature_row.keys())))
+                gas_intensity = float(np.expm1(float(_m.energy_gas.predict(Xg)[0])))  # kWh/m²
+                gas_kwh_eq    = gas_intensity * gfa
+            except Exception:
+                pass
+
+        total_kwh       = kwh + gas_kwh_eq
+        total_intensity = total_kwh / max(gfa, 1)
+        gas_gj          = gas_kwh_eq / 277.78 if gas_kwh_eq > 0 else None
+
+        # Score: ~800 kWh/m² total → 100 (high-energy industrial); typical office ~400 → 50
+        environmental_impact_score = min(100, int(total_intensity / 8))
+
+        gas_note = (
+            f" + {gas_gj:,.0f} GJ gas ({gas_kwh_eq / 1_000:.0f} MWh equiv.)"
+            if gas_gj else ""
+        )
         return {
-            "score": score,
+            "score": environmental_impact_score,
+            "score_meaning": "0 = low energy use (good), 100 = high energy use (bad)",
             "annual_kwh": round(kwh),
-            "intensity_kwh_per_m2": round(intensity, 1),
+            "annual_gas_gj": round(gas_gj) if gas_gj else None,
+            "total_energy_kwh": round(total_kwh),
+            "intensity_kwh_per_m2": round(total_intensity, 1),
             "description": (
-                f"Predicted annual electricity: {kwh/1000:.0f} MWh "
-                f"({intensity:.0f} kWh/m²) — trained on {meta.get('source', 'Toronto EWRB')} data. "
-                f"{'Above' if intensity > 200 else 'Within'} Toronto benchmark for this building type."
+                f"Predicted annual electricity: {kwh / 1_000:.0f} MWh{gas_note}. "
+                f"Total energy intensity: {total_intensity:.0f} kWh/m² "
+                f"({'above' if total_intensity > 300 else 'within'} typical Toronto benchmark). "
+                f"Environmental impact: {environmental_impact_score}/100 — higher means greater energy use."
             ),
         }
     except Exception as e:
@@ -149,27 +221,9 @@ def predict_energy(building: dict) -> dict | None:
 
 
 def predict_traffic(building: dict) -> dict | None:
-    """Returns predicted daily vehicle trips and a 0-100 traffic impact score."""
-    if _m.traffic is None:
-        return None
-    try:
-        meta  = _m.meta.get("traffic_model", {})
-        row   = _build_feature_row(building)
-        X     = _row_to_array(row, meta.get("features", list(row.keys())))
-        trips = max(0.0, float(_m.traffic.predict(X)[0]))
-        score = min(100, int(trips / 20))   # 2000 trips → score 100
-        return {
-            "score": score,
-            "daily_trips": round(trips),
-            "description": (
-                f"Estimated +{trips:.0f} daily vehicle trips generated. "
-                f"Peak-hour impact on surrounding intersections: "
-                f"{'significant' if trips > 500 else 'moderate' if trips > 200 else 'low'}."
-            ),
-        }
-    except Exception as e:
-        print(f"[xgb] traffic predict error: {e}")
-        return None
+    """Returns ITE-estimated daily vehicle trips and a 0-100 traffic impact score."""
+    from calculators.traffic import estimate_daily_trips
+    return estimate_daily_trips(building)
 
 
 def predict_economic(building: dict) -> dict | None:

@@ -4,14 +4,17 @@ Run after data_pipeline.py has downloaded all datasets.
 
     python ml/train_models.py
 
-Saves three models to ml/models/:
-  - energy_model.json     predicts kWh/m² energy intensity (rule-based + XGB)
-  - traffic_model.json    predicts daily vehicle trips (ITE-calibrated XGB)
-  - economic_model.json   predicts construction jobs via StatsCan I-O multipliers
+Saves to ml/models/:
+  - energy_model.json                    predicts annual kWh from EWRB measurements
+  - energy_building_type_encoder.pkl     LabelEncoder for building_type (required at inference)
+  - economic_model.json                  predicts construction jobs via StatsCan I-O multipliers
+
+Traffic is handled by the ITE calculator in backend/calculators/traffic.py — no model file needed.
 """
 
 import json
 import sys
+import joblib
 import numpy as np
 import pandas as pd
 from pathlib import Path
@@ -52,49 +55,140 @@ def _load_permits() -> pd.DataFrame:
     return df
 
 
-# ── MODEL 1: Energy / Utility (kWh/m² intensity proxy) ───────────────────────
+# ── MODEL 1: Energy / Utility ────────────────────────────────────────────────
+
+def _load_ewrb_combined() -> pd.DataFrame:
+    """
+    Load Ontario EWRB (primary: private buildings) + Toronto EWRB (supplementary:
+    municipal buildings), normalise both to kWh/m² intensity, and return combined.
+
+    Returned columns: building_type, elec_intensity_kwh_m2, gas_intensity_kwh_m2
+    """
+    frames = []
+
+    # 1. Ontario provincial data — real commercial / multi-residential buildings
+    ontario_path = DATA_DIR / "ewrb_ontario.parquet"
+    if ontario_path.exists():
+        ont = pd.read_parquet(ontario_path)
+        ont["elec_intensity_kwh_m2"] = (
+            pd.to_numeric(ont["elec_intensity_gj_m2"], errors="coerce") * 277.78
+        )
+        if "gas_intensity_gj_m2" in ont.columns:
+            ont["gas_intensity_kwh_m2"] = (
+                pd.to_numeric(ont["gas_intensity_gj_m2"], errors="coerce") * 277.78
+            )
+        else:
+            ont["gas_intensity_kwh_m2"] = np.nan
+        frames.append(
+            ont[["building_type", "elec_intensity_kwh_m2", "gas_intensity_kwh_m2"]].copy()
+        )
+        print(f"  Ontario EWRB : {len(ont):,} rows")
+
+    # 2. Toronto municipal data — supplementary (fire stations, water plants, etc.)
+    toronto_path = DATA_DIR / "ewrb_energy.parquet"
+    if toronto_path.exists():
+        tor = pd.read_parquet(toronto_path)
+        tor["floor_area_m2"] = pd.to_numeric(tor["floor_area_sqft"], errors="coerce") / 10.764
+        tor["annual_kwh"]    = pd.to_numeric(tor["usage_electric_grid"], errors="coerce")
+        tor = tor[(tor["floor_area_m2"] > 0) & (tor["annual_kwh"] > 0)].copy()
+        tor["elec_intensity_kwh_m2"] = tor["annual_kwh"] / tor["floor_area_m2"]
+        if "usage_natural_gas" in tor.columns:
+            tor["gas_intensity_kwh_m2"] = (
+                pd.to_numeric(tor["usage_natural_gas"], errors="coerce")
+                * 277.78 / tor["floor_area_m2"]
+            )
+        else:
+            tor["gas_intensity_kwh_m2"] = np.nan
+        frames.append(
+            tor[["building_type", "elec_intensity_kwh_m2", "gas_intensity_kwh_m2"]].copy()
+        )
+        print(f"  Toronto EWRB : {len(tor):,} rows")
+
+    if not frames:
+        return pd.DataFrame()
+
+    combined = pd.concat(frames, ignore_index=True)
+    combined = combined.dropna(subset=["elec_intensity_kwh_m2"])
+    combined = combined[combined["elec_intensity_kwh_m2"] > 0].copy()
+
+    # Cap per-column outliers at 99th percentile (data-entry errors / corner cases)
+    for col in ["elec_intensity_kwh_m2", "gas_intensity_kwh_m2"]:
+        p99 = combined[col].quantile(0.99)
+        combined[col] = combined[col].where(combined[col] <= p99)
+
+    return combined
+
 
 def train_energy(df: pd.DataFrame):
+    """
+    Train electricity-intensity and gas-intensity models.
+    Target is kWh/m²; at inference multiply by GFA to get annual absolute kWh.
+    Training data: Ontario EWRB (private buildings) + Toronto EWRB (municipal).
+    """
     print("\n=== Model 1: Energy / Utility ===")
 
-    ewrb_path = DATA_DIR / "ewrb_energy.parquet"
-    if not ewrb_path.exists():
-        print("  SKIP: ewrb_energy.parquet not found — run data_pipeline.py first")
+    rows = _load_ewrb_combined()
+    if rows.empty or len(rows) < 50:
+        print(f"  SKIP: insufficient data ({len(rows)} rows)")
         return
 
-    rows = pd.read_parquet(ewrb_path)
-    rows["floor_area_m2"]          = pd.to_numeric(rows["floor_area_m2"],          errors="coerce")
-    rows["annual_electricity_kwh"] = pd.to_numeric(rows["annual_electricity_kwh"], errors="coerce")
-    rows = rows.dropna(subset=["floor_area_m2", "annual_electricity_kwh"])
-    rows = rows[(rows["floor_area_m2"] > 0) & (rows["annual_electricity_kwh"] > 0)].copy()
+    print(f"  Combined     : {len(rows):,} rows total")
 
-    if len(rows) < 50:
-        print(f"  SKIP: only {len(rows)} rows after filtering")
-        return
-
-    le = LabelEncoder()
-    rows["building_type_enc"] = le.fit_transform(
-        rows["building_type"].fillna("Unknown").astype(str)
+    le_building = LabelEncoder()
+    rows["building_type_enc"] = le_building.fit_transform(
+        rows["building_type"].fillna("Other").astype(str)
     )
-    rows["kwh_per_m2"] = rows["annual_electricity_kwh"] / rows["floor_area_m2"]
 
-    X = rows[["floor_area_m2", "building_type_enc"]].fillna(0)
-    y = np.log1p(rows["annual_electricity_kwh"])
+    # ── Electricity intensity model ───────────────────────────────────────────
+    elec_rows = rows.dropna(subset=["elec_intensity_kwh_m2"])
+    X = elec_rows[["building_type_enc"]].fillna(0)
+    y = np.log1p(elec_rows["elec_intensity_kwh_m2"])
 
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
-    model = xgb.XGBRegressor(n_estimators=200, max_depth=5, learning_rate=0.1,
+    model = xgb.XGBRegressor(n_estimators=300, max_depth=6, learning_rate=0.05,
                               random_state=42, verbosity=0)
     model.fit(X_train, y_train)
-    preds = model.predict(X_test)
-    mae, r2 = mean_absolute_error(y_test, preds), r2_score(y_test, preds)
-    print(f"  n={len(rows):,}  MAE(log-kWh)={mae:.3f}  R²={r2:.3f}")
+    mae, r2 = (mean_absolute_error(y_test, model.predict(X_test)),
+               r2_score(y_test, model.predict(X_test)))
+    print(f"  Electricity  : n={len(elec_rows):,}  MAE={mae:.3f} log(kWh/m²)  R²={r2:.3f}")
+
+    enc_path = MODEL_DIR / "energy_building_type_encoder.pkl"
+    joblib.dump(le_building, str(enc_path))
+    print(f"  Saved {enc_path.name}  ({len(le_building.classes_)} classes)")
 
     _save_model(model, "energy_model", {
-        "features": list(X.columns),
-        "target": "log1p_annual_electricity_kwh",
-        "source": "Toronto EWRB real measurements",
-        "building_type_classes": list(le.classes_),
-        "mae": round(mae, 4), "r2": round(r2, 4),
+        "features": ["building_type_enc"],
+        "target": "log1p_elec_intensity_kwh_per_m2",
+        "source": "Ontario EWRB (private) + Toronto EWRB (municipal)",
+        "building_type_classes": list(le_building.classes_),
+        "mae": round(float(mae), 4), "r2": round(float(r2), 4),
+    })
+
+    # ── Gas intensity model ───────────────────────────────────────────────────
+    gas_rows = rows.dropna(subset=["gas_intensity_kwh_m2"])
+    gas_rows = gas_rows[gas_rows["gas_intensity_kwh_m2"] > 0].copy()
+
+    if len(gas_rows) < 50:
+        print(f"  Gas SKIP: only {len(gas_rows)} rows with gas data")
+        return
+
+    Xg = gas_rows[["building_type_enc"]].fillna(0)
+    yg = np.log1p(gas_rows["gas_intensity_kwh_m2"])
+
+    Xg_train, Xg_test, yg_train, yg_test = train_test_split(Xg, yg, test_size=0.2, random_state=42)
+    gas_model = xgb.XGBRegressor(n_estimators=300, max_depth=6, learning_rate=0.05,
+                                  random_state=42, verbosity=0)
+    gas_model.fit(Xg_train, yg_train)
+    gmae, gr2 = (mean_absolute_error(yg_test, gas_model.predict(Xg_test)),
+                 r2_score(yg_test, gas_model.predict(Xg_test)))
+    print(f"  Gas          : n={len(gas_rows):,}  MAE={gmae:.3f} log(kWh/m²)  R²={gr2:.3f}")
+
+    _save_model(gas_model, "energy_gas_model", {
+        "features": ["building_type_enc"],
+        "target": "log1p_gas_intensity_kwh_per_m2",
+        "source": "Ontario EWRB (private) + Toronto EWRB (municipal)",
+        "building_type_classes": list(le_building.classes_),
+        "mae": round(float(gmae), 4), "r2": round(float(gr2), 4),
     })
 
 
@@ -191,7 +285,7 @@ def train_economic(df: pd.DataFrame):
         "features": list(X.columns),
         "target": "log1p_est_jobs",
         "statscan_jobs_per_1M_CAD": jobs_per_1m,
-        "mae": round(mae, 4), "r2": round(r2, 4),
+        "mae": round(float(mae), 4), "r2": round(float(r2), 4),
     })
 
 
@@ -204,7 +298,8 @@ if __name__ == "__main__":
         sys.exit(1)
     print(f"Loaded {len(df):,} permits\n")
     train_energy(df)
-    train_traffic(df)
+    # Traffic uses the ITE calculator in backend/calculators/traffic.py — no model needed.
     train_economic(df)
     print("\n=== Done ===")
     print(f"  {len(list(MODEL_DIR.glob('*.json')))} model files in {MODEL_DIR}")
+    print(f"  {len(list(MODEL_DIR.glob('*.pkl')))} encoder files in {MODEL_DIR}")

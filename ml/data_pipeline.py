@@ -9,14 +9,19 @@ Everything is cached - re-running skips already-downloaded files.
 Set FORCE_REFRESH=1 to re-download everything.
 """
 
+import io
 import os
 import re
 import sys
+import requests
+import urllib3
 from pathlib import Path
 
 import pandas as pd
 import geopandas as gpd
 from dotenv import load_dotenv
+
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 load_dotenv()
 
@@ -30,6 +35,9 @@ FORCE = os.getenv("FORCE_REFRESH", "0") == "1"
 # Add ml/ to path so fetch.py is importable
 sys.path.insert(0, str(Path(__file__).parent))
 from fetch import fetch, fetch_resource, fetch_gtfs_stops, fetch_csv_with_latlon, download_raster
+
+ONTARIO_EWRB_ID   = "0eab2faf-6186-4a5b-8de1-b15872943c24"
+ONTARIO_CKAN_BASE = "https://data.ontario.ca/api/3/action/"
 
 
 def _save(name: str, data: gpd.GeoDataFrame | pd.DataFrame, last_mod: str):
@@ -295,6 +303,116 @@ def dl_ewrb():
         print(f"    WARNING: ewrb_energy failed ({e})")
 
 
+def dl_ewrb_ontario():
+    """
+    Download Ontario provincial EWRB public-release data (2018-2024).
+    Covers private commercial, multi-residential, and industrial buildings ≥100k sqft.
+    Publicly-owned buildings (city/province) are exempt from provincial reporting
+    and are captured by dl_ewrb() from Toronto Open Data instead.
+
+    Columns saved:
+      building_type          PrimPropTypCalc (calculated, more reliable than self-reported)
+      elec_intensity_gj_m2   Weather-normalised electricity intensity (GJ/m²)
+      gas_intensity_gj_m2    Weather-normalised natural gas intensity (GJ/m²)
+      site_eui_gj_m2         Total site energy intensity (GJ/m²)
+      ghg_intensity          GHG emissions intensity (kg CO2e/m²)
+      city, postal_code
+      reporting_year
+    """
+    if cached("ewrb_ontario"):
+        return
+    try:
+        r = requests.get(
+            ONTARIO_CKAN_BASE + "package_show",
+            params={"id": ONTARIO_EWRB_ID},
+            timeout=30,
+            verify=False,
+        )
+        r.raise_for_status()
+        resources = r.json()["result"]["resources"]
+
+        # English XLSX files only.
+        # French files contain "energie" in the download filename; skip those and the dict.
+        xlsx_res = [
+            res for res in resources
+            if res.get("format", "").lower() == "xlsx"
+            and "energie" not in res.get("url", "").split("/")[-1].lower()
+            and "dictionary" not in res.get("name", "").lower()
+            and "donn" not in res.get("name", "").lower()
+        ]
+
+        frames = []
+        for res in sorted(xlsx_res, key=lambda x: x.get("name", "")):
+            name = res.get("name", "").strip()
+            year = int(name) if name.isdigit() and len(name) == 4 else None
+            print(f"    [{year}] {name!r}...", end=" ", flush=True)
+
+            resp = requests.get(res["url"], timeout=300, verify=False)
+            resp.raise_for_status()
+
+            df = pd.read_excel(io.BytesIO(resp.content), sheet_name=0)
+
+            # Coerce intensity columns to numeric (some contain "Not Available" strings)
+            for col in ["WN_Sit_Elc_Int1", "WN_Sit_Gas_Int1", "Site_EUI1", "GHG_Emiss_Int1"]:
+                if col in df.columns:
+                    df[col] = pd.to_numeric(df[col], errors="coerce")
+
+            # Keep only the columns that exist (schema varies slightly across years)
+            keep = {}
+            col_map = {
+                "PrimPropTypCalc": "building_type",
+                "WN_Sit_Elc_Int1": "elec_intensity_gj_m2",
+                "WN_Sit_Gas_Int1": "gas_intensity_gj_m2",
+                "Site_EUI1":       "site_eui_gj_m2",
+                "GHG_Emiss_Int1":  "ghg_intensity",
+                "City":            "city",
+                "Postal_Code":     "postal_code",
+                "Data_Qual_Check": "_qual",
+            }
+            for src, dst in col_map.items():
+                if src in df.columns:
+                    keep[dst] = df[src]
+
+            if "building_type" not in keep or "elec_intensity_gj_m2" not in keep:
+                print(f"skipped (missing key columns)")
+                continue
+
+            chunk = pd.DataFrame(keep)
+
+            # Keep only rows that passed the data quality check
+            if "_qual" in chunk.columns:
+                chunk = chunk[chunk["_qual"].astype(str).str.lower() == "yes"].drop(columns=["_qual"])
+            else:
+                chunk = chunk.drop(columns=["_qual"], errors="ignore")
+
+            # Drop rows with no usable intensity data
+            chunk = chunk.dropna(subset=["elec_intensity_gj_m2"])
+            chunk = chunk[chunk["elec_intensity_gj_m2"] > 0]
+
+            # Remove per-column outliers (>99th pct likely data-entry errors)
+            for col in ["elec_intensity_gj_m2", "gas_intensity_gj_m2", "site_eui_gj_m2"]:
+                if col in chunk.columns:
+                    p99 = chunk[col].quantile(0.99)
+                    chunk = chunk[chunk[col].isna() | (chunk[col] <= p99)]
+
+            if year:
+                chunk["reporting_year"] = year
+
+            frames.append(chunk)
+            print(f"{len(chunk):,} rows")
+
+        if not frames:
+            print("    WARNING: no Ontario EWRB data downloaded")
+            return
+
+        combined = pd.concat(frames, ignore_index=True)
+        print(f"    Combined: {len(combined):,} rows across {len(frames)} years")
+        _save("ewrb_ontario", combined, f"Ontario Open Data EWRB {len(frames)} years")
+
+    except Exception as exc:
+        print(f"    WARNING: ewrb_ontario failed ({exc})")
+
+
 def dl_building_permits():
     for name, ckan_id in [
         ("building_permits_cleared", "building-permits-cleared-permits"),
@@ -394,6 +512,7 @@ def main():
 
     print("\n-- Tabular training data ---------------------------")
     dl_ewrb()
+    dl_ewrb_ontario()
     dl_building_permits()
     dl_business_licences()
     dl_property_tax()
