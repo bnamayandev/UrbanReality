@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useRef } from 'react'
 import { Header } from './components/Header'
 import { Map } from './components/Map'
 import { BuildingForm } from './components/BuildingForm'
@@ -9,14 +9,23 @@ import { useImpact } from './hooks/useImpact'
 import { useBuilding3D } from './hooks/useBuilding3D'
 import { getBuildings } from './api'
 
+const API_BASE = import.meta.env.VITE_API_BASE || '/api'
+
+const DEFAULT_FORM = { name: '', description: '', floors: 24 }
+
 export default function App() {
   const [mode,         setMode]         = useState('builder')   // 'builder' | 'citizen'
   const [coord,        setCoord]        = useState(null)
   const [formData,     setFormData]     = useState({ floors: 24, footprint_m2: 2000, type: 'residential (high-rise)' })
+  const [liveForm,     setLiveForm]     = useState(DEFAULT_FORM)
   const [existing,     setExisting]     = useState([])
   const [selected,     setSelected]     = useState(null)
   const [panelOpen,    setPanelOpen]    = useState(false)
   const [renderPayload, setRenderPayload] = useState(null)
+  const [mapPreview,   setMapPreview]   = useState({ image: null, loading: false })
+
+  const previewTimerRef = useRef(null)
+  const previewAbortRef = useRef(null)
 
   const { building, loading: buildingLoading, submit, reset } = useBuilding()
   const buildingId = building?.id || selected?.id
@@ -33,20 +42,60 @@ export default function App() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (building || selected) setPanelOpen(true)
   }, [building, selected])
 
+  const generateMapPreview = async (formData, coordVal) => {
+    if (!coordVal) return
+    if (previewAbortRef.current) previewAbortRef.current.abort()
+    const controller = new AbortController()
+    previewAbortRef.current = controller
+
+    setMapPreview({ image: null, loading: true })
+    try {
+      const prompt = formData.description?.trim()
+        || `A modern ${formData.floors || 24}-floor urban building in Toronto`
+      const res = await fetch(`${API_BASE}/generate/building-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+        signal: controller.signal,
+      })
+      if (!res.ok) throw new Error(`${res.status}`)
+      const data = await res.json()
+      setMapPreview({ image: data.image_b64 ? `data:image/png;base64,${data.image_b64}` : null, loading: false })
+    } catch (e) {
+      if (e.name !== 'AbortError') setMapPreview({ image: null, loading: false })
+    }
+  }
+
+  // Trigger map preview whenever building type, material, or coord changes
+  // (popup already guards on coord being truthy, so no state reset needed here)
+  useEffect(() => {
+    if (!coord) return
+    clearTimeout(previewTimerRef.current)
+    previewTimerRef.current = setTimeout(() => {
+      generateMapPreview(liveForm, coord)
+    }, 900)
+    return () => clearTimeout(previewTimerRef.current)
+  }, [liveForm.description, coord]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const handleFormChange = useCallback((data) => setLiveForm(data), [])
+
   const handleModeChange = useCallback((newMode) => {
     setMode(newMode)
-    // In citizen mode, clear any builder state
     if (newMode === 'citizen') {
       reset(); reset3D()
       setCoord(null); setPanelOpen(false); setRenderPayload(null)
+      setMapPreview({ image: null, loading: false })
+      clearTimeout(previewTimerRef.current)
+      if (previewAbortRef.current) previewAbortRef.current.abort()
     }
   }, [reset, reset3D])
 
   const handleSubmit = async (data) => {
-    setFormData({ floors: data.floors, footprint_m2: data.footprint_m2, type: data.type })
+    setFormData({ floors: data.floors, footprint_m2: 2000, type: 'mixed-use' })
     setSelected(null)
     const result = await submit(data)
     if (result) {
@@ -58,11 +107,16 @@ export default function App() {
   const handleReset = () => {
     reset(); reset3D()
     setCoord(null); setSelected(null); setPanelOpen(false); setRenderPayload(null)
+    setMapPreview({ image: null, loading: false })
+    setLiveForm(DEFAULT_FORM)
+    clearTimeout(previewTimerRef.current)
+    if (previewAbortRef.current) previewAbortRef.current.abort()
   }
 
   const handleSelectExisting = (b) => {
     reset(); reset3D()
     setCoord(null); setSelected(b); setRenderPayload(null)
+    setMapPreview({ image: null, loading: false })
   }
 
   const activeBuilding = building || selected
@@ -85,6 +139,7 @@ export default function App() {
           onSelectExisting={handleSelectExisting}
           readOnly={isCitizen}
           mode={mode}
+          mapPreview={isCitizen ? null : mapPreview}
         />
 
         {/* ── BUILDER mode UI ── */}
@@ -94,6 +149,7 @@ export default function App() {
             onSubmit={handleSubmit}
             onReset={coord || building ? handleReset : null}
             loading={buildingLoading}
+            onFormChange={handleFormChange}
           />
         )}
 

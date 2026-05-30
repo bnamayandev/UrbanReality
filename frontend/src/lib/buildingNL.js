@@ -39,7 +39,7 @@ export function diffBuildings(prev, next) {
   }
 
   const fields = []
-  for (const [field, cfg] of Object.entries(FIELD_LABELS)) {
+  for (const [field] of Object.entries(FIELD_LABELS)) {
     const from = prev[field], to = next[field]
     if (from === to || (from == null && to == null)) continue
     const entry = { field, from, to }
@@ -73,12 +73,15 @@ export function diffBuildings(prev, next) {
 }
 
 export function buildAgentPrompt(payload, previousAgentPrompt) {
-  const desc = payload.naturalLanguage
-  const p    = payload.renderParams
-
   const base = `You are an architectural visualization agent. Generate a hyper-realistic architectural render of a building on a completely white background. No surroundings, no sky, no ground — just the building. The building is: ${describeBuilding(payload.spec)}`
 
   if (!payload.isUpdate) {
+    // If the user provided a free-form description, use it directly.
+    // The backend _build_prompt() will wrap it in the standard preamble.
+    if (payload.spec.renderPrompt && payload.spec.renderPrompt.trim()) {
+      return payload.spec.renderPrompt.trim()
+    }
+    // ── FIRST REQUEST — auto-generated from spec ───────────────────────────
     return base
   }
 

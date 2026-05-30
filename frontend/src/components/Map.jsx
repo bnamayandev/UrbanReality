@@ -1,190 +1,17 @@
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, useCallback } from 'react'
 import ReactMapGL, { Source, Layer, NavigationControl, Popup } from 'react-map-gl/mapbox'
-import mapboxgl from 'mapbox-gl'
-import * as THREE from 'three'
-import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js'
-import * as turf from '@turf/turf'
 import 'mapbox-gl/dist/mapbox-gl.css'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN
-const GLB_LAYER_ID = 'glb-building-model'
-const EMPTY_GEO = { type: 'FeatureCollection', features: [] }
-
-// --- Geometry helpers ---
-
-function makeRectGeo(start, end) {
-  const minLng = Math.min(start.lng, end.lng)
-  const maxLng = Math.max(start.lng, end.lng)
-  const minLat = Math.min(start.lat, end.lat)
-  const maxLat = Math.max(start.lat, end.lat)
-  return {
-    type: 'Feature',
-    geometry: {
-      type: 'Polygon',
-      coordinates: [[
-        [minLng, minLat], [maxLng, minLat], [maxLng, maxLat],
-        [minLng, maxLat], [minLng, minLat],
-      ]],
-    },
-    properties: {},
-  }
-}
-
-function rectCenter(start, end) {
-  return { lng: (start.lng + end.lng) / 2, lat: (start.lat + end.lat) / 2 }
-}
-
-function rectDimensions(start, end) {
-  const width = turf.distance(
-    turf.point([start.lng, start.lat]),
-    turf.point([end.lng, start.lat]),
-    { units: 'meters' }
-  )
-  const depth = turf.distance(
-    turf.point([start.lng, start.lat]),
-    turf.point([start.lng, end.lat]),
-    { units: 'meters' }
-  )
-  return { width, depth }
-}
-
-function compassLabel(deg) {
-  const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
-  return dirs[Math.round(deg / 45) % 8]
-}
-
-// Converts a rotated building footprint (meters) centred on `coord` → GeoJSON polygon.
-// Model X axis = east, model Z axis = north (before rotY in Three.js space).
-function footprintGeo(coord, widthM, depthM, rotDeg) {
-  const az = -(rotDeg * Math.PI) / 180
-  const cosA = Math.cos(az)
-  const sinA = Math.sin(az)
-  const w = widthM / 2
-  const d = depthM / 2
-  const mPerDegLat = 111320
-  const mPerDegLng = 111320 * Math.cos(coord.lat * Math.PI / 180)
-
-  // Four corners in model XZ space, then rotate via rotY(az)
-  const corners = [[-w, -d], [w, -d], [w, d], [-w, d]].map(([x, z]) => {
-    const eastM  =  cosA * x + sinA * z
-    const northM = -sinA * x + cosA * z
-    return [coord.lng + eastM / mPerDegLng, coord.lat + northM / mPerDegLat]
-  })
-
-  return {
-    type: 'Feature',
-    geometry: { type: 'Polygon', coordinates: [[...corners, corners[0]]] },
-    properties: {},
-  }
-}
-
-// --- GLB layer ---
-
-function buildGLBLayer(coord, rectWidth, rectDepth, rotationRef, onDimsReady) {
-  const mercator = mapboxgl.MercatorCoordinate.fromLngLat([coord.lng, coord.lat], 0)
-  const mpu = mercator.meterInMercatorCoordinateUnits()
-
-  let renderer, scene, camera
-  let modelScale = mpu
-
-  return {
-    id: GLB_LAYER_ID,
-    type: 'custom',
-    renderingMode: '3d',
-
-    onAdd(map, gl) {
-      camera = new THREE.Camera()
-      scene = new THREE.Scene()
-      scene.add(new THREE.AmbientLight(0xffffff, 1.0))
-      const sun = new THREE.DirectionalLight(0xffffff, 1.5)
-      sun.position.set(0.5, -1, 1).normalize()
-      scene.add(sun)
-
-      new GLTFLoader().load('/source/appartamenti.glb', (gltf) => {
-        const box = new THREE.Box3().setFromObject(gltf.scene)
-        const size = new THREE.Vector3()
-        const center = new THREE.Vector3()
-        box.getSize(size)
-        box.getCenter(center)
-
-        // Center footprint at origin, sit on ground
-        gltf.scene.position.set(-center.x, -box.min.y, -center.z)
-
-        // Uniform scale: fill the smaller rectangle dimension, preserve aspect ratio
-        const metersPerUnit = Math.min(rectWidth / size.x, rectDepth / size.z)
-        modelScale = metersPerUnit * mpu
-
-        onDimsReady?.({ width: size.x * metersPerUnit, depth: size.z * metersPerUnit })
-        scene.add(gltf.scene)
-        map.triggerRepaint()
-      })
-
-      renderer = new THREE.WebGLRenderer({ canvas: map.getCanvas(), context: gl, antialias: true })
-      renderer.autoClear = false
-      renderer.outputColorSpace = THREE.SRGBColorSpace
-    },
-
-    render(gl, matrix) {
-      const azimuth = ((rotationRef?.current ?? 0) * Math.PI) / 180
-      const translate = new THREE.Matrix4().makeTranslation(mercator.x, mercator.y, mercator.z)
-      const scale = new THREE.Matrix4().makeScale(modelScale, -modelScale, modelScale)
-      const rotX = new THREE.Matrix4().makeRotationX(Math.PI / 2)
-      const rotY = new THREE.Matrix4().makeRotationY(azimuth)
-
-      camera.projectionMatrix = new THREE.Matrix4()
-        .fromArray(matrix)
-        .multiply(translate)
-        .multiply(scale)
-        .multiply(rotX)
-        .multiply(rotY)
-
-      renderer.resetState()
-      renderer.render(scene, camera)
-    },
-  }
-}
-
-function useGLBLayer(mapRef, coord, rectDims, rotationRef, onDimsReady) {
-  useEffect(() => {
-    if (!coord || !rectDims) return
-    const map = mapRef.current?.getMap?.()
-    if (!map) return
-
-    const create = () => buildGLBLayer(coord, rectDims.width, rectDims.depth, rotationRef, onDimsReady)
-
-    const addLayer = () => {
-      if (map.getLayer(GLB_LAYER_ID)) map.removeLayer(GLB_LAYER_ID)
-      map.addLayer(create())
-    }
-
-    if (map.isStyleLoaded()) {
-      addLayer()
-    } else {
-      map.once('load', addLayer)
-    }
-
-    const onStyleLoad = () => {
-      if (map.getLayer(GLB_LAYER_ID)) map.removeLayer(GLB_LAYER_ID)
-      map.addLayer(create())
-    }
-    map.on('style.load', onStyleLoad)
-
-    return () => {
-      map.off('style.load', onStyleLoad)
-      if (map.getLayer(GLB_LAYER_ID)) map.removeLayer(GLB_LAYER_ID)
-    }
-  }, [coord, rectDims, mapRef])
-}
-
-// --- Map constants ---
-
 const TORONTO = { longitude: -79.3832, latitude: 43.6532, zoom: 13.5, pitch: 45, bearing: -10 }
 
+// Map styles per mode
 const MAP_STYLES = {
   builder: 'mapbox://styles/mapbox/dark-v11',
   citizen: 'mapbox://styles/mapbox/light-v11',
 }
 
+// 3D buildings layer — dark (builder) theme
 const BUILDINGS_DARK = {
   id: 'existing-3d-buildings',
   source: 'composite',
@@ -195,14 +22,18 @@ const BUILDINGS_DARK = {
   paint: {
     'fill-extrusion-color': [
       'interpolate', ['linear'], ['get', 'height'],
-      0, '#0f1624', 50, '#131d2e', 100, '#162036', 200, '#1a2540',
+      0,   '#0f1624',
+      50,  '#131d2e',
+      100, '#162036',
+      200, '#1a2540',
     ],
-    'fill-extrusion-height': ['get', 'height'],
-    'fill-extrusion-base': ['get', 'min_height'],
+    'fill-extrusion-height':  ['get', 'height'],
+    'fill-extrusion-base':    ['get', 'min_height'],
     'fill-extrusion-opacity': 0.9,
   },
 }
 
+// 3D buildings layer — light (citizen) theme
 const BUILDINGS_LIGHT = {
   id: 'existing-3d-buildings',
   source: 'composite',
@@ -213,17 +44,39 @@ const BUILDINGS_LIGHT = {
   paint: {
     'fill-extrusion-color': [
       'interpolate', ['linear'], ['get', 'height'],
-      0, '#d8dde8', 50, '#c8cede', 100, '#b8c0d4', 200, '#a8b2c8',
+      0,   '#d8dde8',
+      50,  '#c8cede',
+      100, '#b8c0d4',
+      200, '#a8b2c8',
     ],
-    'fill-extrusion-height': ['get', 'height'],
-    'fill-extrusion-base': ['get', 'min_height'],
+    'fill-extrusion-height':  ['get', 'height'],
+    'fill-extrusion-base':    ['get', 'min_height'],
     'fill-extrusion-opacity': 0.85,
   },
 }
 
-// --- ExistingMarkers ---
+// Converts footprint m² → approximate degree offset for the square polygon
+function placedBuildingGeo(coord, floors, footprintM2) {
+  if (!coord) return null
+  const side = Math.sqrt(footprintM2) / 111320
+  const { lat, lng } = coord
+  return {
+    type: 'Feature',
+    geometry: {
+      type: 'Polygon',
+      coordinates: [[
+        [lng - side / 2, lat - side / 2],
+        [lng + side / 2, lat - side / 2],
+        [lng + side / 2, lat + side / 2],
+        [lng - side / 2, lat + side / 2],
+        [lng - side / 2, lat - side / 2],
+      ]],
+    },
+    properties: { height: floors * 3.5, base: 0 },
+  }
+}
 
-function ExistingMarkers({ buildings, onSelect, selected, mode }) {
+function ExistingMarkers({ buildings, onSelect, selected }) {
   if (!buildings?.length) return null
   return buildings.map(b => (
     <Popup
@@ -252,8 +105,11 @@ function ExistingMarkers({ buildings, onSelect, selected, mode }) {
           {b.type} · {b.floors}F
         </div>
         <div style={{
-          display: 'inline-block', fontSize: '10px', fontWeight: 600,
-          padding: '1px 6px', borderRadius: '3px',
+          display: 'inline-block',
+          fontSize: '10px',
+          fontWeight: 600,
+          padding: '1px 6px',
+          borderRadius: '3px',
           background: selected?.id === b.id ? 'var(--cyan)' : 'var(--surface-2)',
           color: selected?.id === b.id ? '#000' : 'var(--text-2)',
           border: '1px solid var(--border)',
@@ -265,91 +121,30 @@ function ExistingMarkers({ buildings, onSelect, selected, mode }) {
   ))
 }
 
-// --- Map component ---
-
-export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting, readOnly = false, mode = 'builder' }) {
+export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting, readOnly = false, mode = 'builder', mapPreview = null }) {
   const mapRef = useRef(null)
   const [selectedExisting, setSelectedExisting] = useState(null)
   const isDark = mode === 'builder'
 
-  const [isDrawMode, setIsDrawMode] = useState(false)
-  const [rectangle, setRectangle] = useState(null)
-  const [rectArea, setRectArea] = useState(null)
-  const [rectDims, setRectDims] = useState(null)
-  const [rectCoord, setRectCoord] = useState(null)
-  const [rotation, setRotation] = useState(0)
-  const rotationRef = useRef(0)
-  const [buildingFootprint, setBuildingFootprint] = useState(null) // {width, depth} meters, actual scaled GLB
+  const handleClick = useCallback((e) => {
+    if (readOnly || !onCoordSelect) return
+    const { lng, lat } = e.lngLat
+    onCoordSelect({ lat, lng })
+  }, [onCoordSelect, readOnly])
 
-  useGLBLayer(mapRef, rectCoord, rectDims, rotationRef, setBuildingFootprint)
-
-  // Draw interaction — active only while isDrawMode is true
+  // Fly to placed coord
   useEffect(() => {
-    if (!isDrawMode || readOnly) return
-    const map = mapRef.current?.getMap?.()
-    if (!map) return
+    if (!coord || !mapRef.current) return
+    mapRef.current.flyTo({
+      center: [coord.lng, coord.lat],
+      zoom: Math.max(mapRef.current.getZoom(), 15.5),
+      pitch: 55,
+      duration: 900,
+      essential: true,
+    })
+  }, [coord])
 
-    map.dragPan.disable()
-    let startPoint = null
-    let isDown = false
-
-    const onMouseDown = (e) => {
-      if (e.originalEvent.button !== 0) return
-      isDown = true
-      startPoint = { lng: e.lngLat.lng, lat: e.lngLat.lat }
-    }
-
-    const onMouseMove = (e) => {
-      if (!isDown || !startPoint) return
-      const end = { lng: e.lngLat.lng, lat: e.lngLat.lat }
-      const geo = makeRectGeo(startPoint, end)
-      setRectangle(geo)
-      setRectArea(turf.area(geo))
-    }
-
-    const onMouseUp = (e) => {
-      if (!isDown || !startPoint) return
-      isDown = false
-      const end = { lng: e.lngLat.lng, lat: e.lngLat.lat }
-      const start = startPoint
-      startPoint = null
-
-      const geo = makeRectGeo(start, end)
-      const dims = rectDimensions(start, end)
-      const center = rectCenter(start, end)
-
-      setRectangle(geo)
-      setRectArea(turf.area(geo))
-      setRectDims(dims)
-      setRectCoord(center)
-      setRotation(0)
-      rotationRef.current = 0
-      setBuildingFootprint(null)
-      setIsDrawMode(false)
-      onCoordSelect?.(center)
-
-      mapRef.current?.flyTo({
-        center: [center.lng, center.lat],
-        zoom: Math.max(mapRef.current.getZoom(), 17),
-        pitch: 60,
-        duration: 900,
-        essential: true,
-      })
-    }
-
-    map.on('mousedown', onMouseDown)
-    map.on('mousemove', onMouseMove)
-    map.on('mouseup', onMouseUp)
-
-    return () => {
-      map.off('mousedown', onMouseDown)
-      map.off('mousemove', onMouseMove)
-      map.off('mouseup', onMouseUp)
-      map.dragPan.enable()
-    }
-  }, [isDrawMode, readOnly, onCoordSelect])
-
-  // Sync map style on mode switch
+  // Sync map style when mode switches
   useEffect(() => {
     if (!mapRef.current) return
     const map = mapRef.current.getMap?.()
@@ -362,26 +157,15 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
     mapRef.current?.flyTo({ center: [b.lng, b.lat], zoom: 15.5, pitch: 50, duration: 700 })
   }
 
-  // While drawing show the raw rectangle; once the GLB loads switch to the actual scaled footprint
-  const displayGeo = (!isDrawMode && rectCoord && buildingFootprint)
-    ? footprintGeo(rectCoord, buildingFootprint.width, buildingFootprint.depth, rotation)
-    : (rectangle ?? EMPTY_GEO)
+  const placedGeo = coord && buildingForm
+    ? placedBuildingGeo(coord, buildingForm.floors || 24, buildingForm.footprint_m2 || 2000)
+    : null
 
-  const displayArea = buildingFootprint
-    ? buildingFootprint.width * buildingFootprint.depth
-    : (rectArea ?? 0)
-
-  const accent = isDark ? '#00d4ff' : '#0077cc'
-  const accentBg = isDark ? 'rgba(0,212,255,0.12)' : 'rgba(0,119,204,0.10)'
-  const accentBorder = isDark ? 'rgba(0,212,255,0.35)' : 'rgba(0,119,204,0.35)'
-  const hintBg = isDark ? 'rgba(10,10,15,0.85)' : 'rgba(245,246,250,0.90)'
-  const hintColor = 'var(--text-2)'
-
-  const pillBase = {
-    borderRadius: 20, padding: '8px 20px', fontSize: 12,
-    backdropFilter: 'blur(10px)', whiteSpace: 'nowrap',
-    position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-  }
+  const hintBg    = isDark ? 'rgba(10,10,15,0.85)'     : 'rgba(245,246,250,0.90)'
+  const hintColor = isDark ? 'var(--text-2)'            : 'var(--text-2)'
+  const activeBg  = isDark ? 'rgba(0,212,255,0.12)'    : 'rgba(0,119,204,0.10)'
+  const activeBorder = isDark ? 'rgba(0,212,255,0.35)' : 'rgba(0,119,204,0.35)'
+  const activeColor  = isDark ? 'var(--cyan)'           : '#0077cc'
 
   return (
     <div style={{ flex: 1, position: 'relative' }}>
@@ -391,104 +175,151 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
         initialViewState={TORONTO}
         style={{ width: '100%', height: '100%' }}
         mapStyle={MAP_STYLES[mode]}
-        cursor={isDrawMode ? 'crosshair' : 'grab'}
+        cursor={readOnly ? 'default' : 'crosshair'}
+        onClick={handleClick}
       >
+        {/* Navigation controls */}
         <NavigationControl position="top-right" visualizePitch />
+
+        {/* Toronto 3D buildings — style switches with mode */}
         <Layer {...(isDark ? BUILDINGS_DARK : BUILDINGS_LIGHT)} />
 
-        {/* Buildable area / building footprint outline */}
-        <Source id="draw-rect" type="geojson" data={displayGeo}>
-          <Layer
-            id="draw-rect-fill"
-            type="fill"
-            paint={{ 'fill-color': accent, 'fill-opacity': 0.10 }}
-          />
-          <Layer
-            id="draw-rect-outline"
-            type="line"
-            paint={{ 'line-color': accent, 'line-width': 2, 'line-dasharray': [4, 2] }}
-          />
-        </Source>
+        {/* Placed building extrusion */}
+        {placedGeo && (
+          <Source id="placed-building" type="geojson" data={placedGeo}>
+            <Layer
+              id="placed-building-fill"
+              type="fill-extrusion"
+              paint={{
+                'fill-extrusion-color':   isDark ? '#00d4ff' : '#0077cc',
+                'fill-extrusion-height':  ['get', 'height'],
+                'fill-extrusion-base':    ['get', 'base'],
+                'fill-extrusion-opacity': 0.72,
+              }}
+            />
+            {/* Outline glow */}
+            <Layer
+              id="placed-building-outline"
+              type="fill-extrusion"
+              paint={{
+                'fill-extrusion-color':   isDark ? '#00d4ff' : '#0077cc',
+                'fill-extrusion-height':  ['get', 'height'],
+                'fill-extrusion-base':    ['get', 'base'],
+                'fill-extrusion-opacity': 0.15,
+              }}
+            />
+          </Source>
+        )}
 
+        {/* Existing building popups */}
         <ExistingMarkers
           buildings={existingBuildings}
           onSelect={handleSelectExisting}
           selected={selectedExisting}
-          mode={mode}
         />
+
+        {/* AI building preview popup — appears at placed coord */}
+        {!readOnly && coord && mapPreview && (mapPreview.loading || mapPreview.image) && (
+          <Popup
+            longitude={coord.lng}
+            latitude={coord.lat}
+            anchor="bottom"
+            closeButton={false}
+            closeOnClick={false}
+            offset={[0, -24]}
+          >
+            <div style={{
+              width: 210,
+              background: 'rgba(8,12,22,0.95)',
+              borderRadius: 8,
+              overflow: 'hidden',
+              border: `1px solid ${isDark ? 'rgba(0,212,255,0.35)' : 'rgba(0,119,204,0.35)'}`,
+              boxShadow: `0 4px 24px rgba(0,0,0,0.6), 0 0 0 1px ${isDark ? 'rgba(0,212,255,0.08)' : 'rgba(0,119,204,0.08)'}`,
+            }}>
+              {/* Header bar */}
+              <div style={{
+                padding: '6px 10px',
+                background: isDark ? 'rgba(0,212,255,0.08)' : 'rgba(0,119,204,0.08)',
+                borderBottom: `1px solid ${isDark ? 'rgba(0,212,255,0.15)' : 'rgba(0,119,204,0.15)'}`,
+                display: 'flex', alignItems: 'center', gap: 6,
+              }}>
+                <div style={{
+                  width: 6, height: 6, borderRadius: '50%', flexShrink: 0,
+                  background: isDark ? 'var(--cyan)' : '#0077cc',
+                  boxShadow: `0 0 6px ${isDark ? 'var(--cyan)' : '#0077cc'}`,
+                  animation: mapPreview.loading ? 'previewPulse 1.2s ease-in-out infinite' : 'none',
+                }} />
+                <span style={{ fontSize: 10, fontWeight: 600, color: isDark ? 'var(--cyan)' : '#0077cc', textTransform: 'uppercase', letterSpacing: '0.06em' }}>
+                  {mapPreview.loading ? 'Generating preview…' : 'AI Preview'}
+                </span>
+              </div>
+
+              {/* Loading state */}
+              {mapPreview.loading && (
+                <div style={{ padding: '18px 0', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
+                  <div style={{
+                    width: 20, height: 20, borderRadius: '50%',
+                    border: '2px solid rgba(255,255,255,0.1)',
+                    borderTopColor: isDark ? 'var(--cyan)' : '#0077cc',
+                    animation: 'previewSpin 0.8s linear infinite',
+                  }} />
+                  <span style={{ fontSize: 10, color: 'rgba(255,255,255,0.4)' }}>Building render on its way</span>
+                </div>
+              )}
+
+              {/* Generated image */}
+              {mapPreview.image && !mapPreview.loading && (
+                <img
+                  src={mapPreview.image}
+                  alt="Building preview"
+                  style={{ width: '100%', height: 'auto', display: 'block' }}
+                />
+              )}
+            </div>
+            <style>{`
+              @keyframes previewSpin { to { transform: rotate(360deg); } }
+              @keyframes previewPulse { 0%,100% { opacity:0.5; } 50% { opacity:1; } }
+              .mapboxgl-popup-content { background:transparent!important; padding:0!important; box-shadow:none!important; border-radius:8px!important; }
+              .mapboxgl-popup-tip { display:none!important; }
+            `}</style>
+          </Popup>
+        )}
       </ReactMapGL>
 
-      {/* Draw / Redraw / Cancel button */}
-      {!readOnly && (
-        <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 1 }}>
-          <button
-            onClick={() => setIsDrawMode(v => !v)}
-            style={{
-              background: isDrawMode ? accent : hintBg,
-              color: isDrawMode ? '#000' : accent,
-              border: `1.5px solid ${accentBorder}`,
-              borderRadius: 8, padding: '8px 16px',
-              fontSize: 12, fontWeight: 600, cursor: 'pointer',
-              backdropFilter: 'blur(10px)', letterSpacing: '0.02em',
-            }}
-          >
-            {isDrawMode ? '✕  Cancel' : rectCoord ? '⟳  Redraw Area' : '⬚  Draw Buildable Area'}
-          </button>
-        </div>
-      )}
-
-      {/* Area label + rotation control */}
-      {rectCoord && !isDrawMode && !readOnly && (
+      {/* Bottom hint pill — builder mode */}
+      {!readOnly && !coord && (
         <div style={{
           position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
-          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+          background: hintBg, border: '1px solid var(--border)',
+          borderRadius: '20px', padding: '8px 20px',
+          fontSize: '12px', color: hintColor,
+          pointerEvents: 'none', backdropFilter: 'blur(10px)', whiteSpace: 'nowrap',
         }}>
-          <div style={{
-            background: accentBg, border: `1px solid ${accentBorder}`,
-            borderRadius: 20, padding: '5px 16px',
-            fontSize: 11, color: accent, fontWeight: 600,
-            backdropFilter: 'blur(10px)', whiteSpace: 'nowrap',
-          }}>
-            {Math.round(displayArea).toLocaleString()} m²&nbsp;&nbsp;·&nbsp;&nbsp;
-            {(buildingFootprint?.width ?? rectDims?.width ?? 0).toFixed(0)} m × {(buildingFootprint?.depth ?? rectDims?.depth ?? 0).toFixed(0)} m
-          </div>
-
-          <div style={{
-            background: hintBg, border: '1px solid var(--border)',
-            borderRadius: 12, padding: '10px 20px',
-            backdropFilter: 'blur(10px)',
-            display: 'flex', alignItems: 'center', gap: 12,
-          }}>
-            <span style={{ fontSize: 11, color: hintColor, minWidth: 80 }}>
-              {rotation}°&nbsp;&nbsp;{compassLabel(rotation)}
-            </span>
-            <input
-              type="range" min={0} max={359} value={rotation}
-              style={{ width: 160, accentColor: accent, cursor: 'pointer' }}
-              onChange={e => {
-                const v = Number(e.target.value)
-                setRotation(v)
-                rotationRef.current = v
-                mapRef.current?.getMap?.()?.triggerRepaint()
-              }}
-            />
-          </div>
+          Click anywhere on the map to place a building
         </div>
       )}
 
-      {/* Hints */}
-      {!readOnly && !rectCoord && !isDrawMode && (
-        <div style={{ ...pillBase, background: hintBg, border: '1px solid var(--border)', color: hintColor, pointerEvents: 'none' }}>
-          Draw a buildable area to place a building
+      {!readOnly && coord && (
+        <div style={{
+          position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: activeBg, border: `1px solid ${activeBorder}`,
+          borderRadius: '20px', padding: '8px 20px',
+          fontSize: '12px', color: activeColor,
+          pointerEvents: 'none', backdropFilter: 'blur(10px)', whiteSpace: 'nowrap',
+        }}>
+          Building placed — click Analyze Impact in the sidebar
         </div>
       )}
-      {!readOnly && isDrawMode && (
-        <div style={{ ...pillBase, background: accentBg, border: `1px solid ${accentBorder}`, color: accent, pointerEvents: 'none' }}>
-          Click and drag to draw the buildable area
-        </div>
-      )}
+
+      {/* Citizen hint */}
       {readOnly && !selectedExisting && (
-        <div style={{ ...pillBase, background: hintBg, border: '1px solid var(--border)', color: hintColor, pointerEvents: 'none' }}>
+        <div style={{
+          position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: hintBg, border: '1px solid var(--border)',
+          borderRadius: '20px', padding: '8px 20px',
+          fontSize: '12px', color: hintColor,
+          pointerEvents: 'none', backdropFilter: 'blur(10px)', whiteSpace: 'nowrap',
+        }}>
           Click any building marker to explore its impact
         </div>
       )}
