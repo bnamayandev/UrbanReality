@@ -1,11 +1,11 @@
 """
-Gemini Imagen 3 building image generator via LangChain.
+Gemini Imagen 3 building image generator.
 
 Pipeline:
-  1. ChatGoogleGenerativeAI (LangChain) — crafts a hyperrealistic Imagen 3 prompt
-     from the building spec using a structured prompt-engineering chain.
-  2. google-genai SDK — sends the enhanced prompt to Imagen 3
-     (imagen-3.0-generate-002) and returns PNG bytes.
+  1. (Optional) LangChain + Gemini 2.0 Flash — crafts an enhanced Imagen 3 prompt.
+     Falls back to a built-in prompt if LangChain is not installed.
+  2. Imagen 3 (imagen-3.0-generate-002) — called via the google-genai SDK if
+     installed, otherwise via a direct httpx REST call (no extra packages needed).
 
 Required .env:
   GOOGLE_API_KEY=...   (Google AI Studio — aistudio.google.com/app/apikey)
@@ -15,21 +15,27 @@ from __future__ import annotations
 
 import os
 import base64
+import httpx
 from io import BytesIO
 from typing import Optional
 
 from PIL import Image
 
-# ── Optional imports — fail gracefully if packages not installed ───────────────
-_DEPS_OK = False
+# ── Optional SDK imports — fail gracefully if packages not installed ──────────
+_GENAI_OK = False
 try:
-    from langchain_google_genai import ChatGoogleGenerativeAI
-    from langchain_core.messages import HumanMessage, SystemMessage
-    from langchain_core.output_parsers import StrOutputParser
-    from langchain_core.prompts import ChatPromptTemplate
     from google import genai
     from google.genai import types as genai_types
-    _DEPS_OK = True
+    _GENAI_OK = True
+except ImportError:
+    pass
+
+_LANGCHAIN_OK = False
+try:
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    from langchain_core.output_parsers import StrOutputParser
+    from langchain_core.prompts import ChatPromptTemplate
+    _LANGCHAIN_OK = True
 except ImportError:
     pass
 
@@ -72,6 +78,8 @@ _HUMAN_TEMPLATE = (
 
 
 def _make_chain(api_key: str):
+    if not _LANGCHAIN_OK:
+        return None
     llm = ChatGoogleGenerativeAI(
         model="gemini-2.0-flash",
         google_api_key=api_key,
@@ -117,6 +125,41 @@ def _normalise(raw: bytes) -> bytes:
     return buf.getvalue()
 
 
+# ── REST fallback — no google-genai SDK needed ────────────────────────────────
+
+def _imagen_via_rest(api_key: str, prompt: str) -> Optional[bytes]:
+    """Call Imagen 3 directly via REST when the google-genai SDK is not installed."""
+    url = (
+        "https://generativelanguage.googleapis.com/v1beta/models/"
+        f"imagen-3.0-generate-002:predict?key={api_key}"
+    )
+    try:
+        r = httpx.post(
+            url,
+            json={
+                "instances": [{"prompt": prompt}],
+                "parameters": {
+                    "sampleCount": 1,
+                    "aspectRatio": "3:4",
+                    "safetySetting": "block_low_and_above",
+                    "personGeneration": "dont_allow",
+                },
+            },
+            timeout=60.0,
+        )
+        r.raise_for_status()
+        predictions = r.json().get("predictions", [])
+        if not predictions:
+            print("[gemini_renderer] REST: no predictions returned")
+            return None
+        b64 = predictions[0].get("bytesBase64Encoded")
+        if b64:
+            return _normalise(base64.b64decode(b64))
+    except Exception as e:
+        print(f"[gemini_renderer] REST call failed: {e}")
+    return None
+
+
 # ── Public entry point ─────────────────────────────────────────────────────────
 
 def generate_gemini_image(
@@ -128,50 +171,52 @@ def generate_gemini_image(
     """
     Generate a hyperrealistic head-on building image via Google Imagen 3.
 
-    Steps:
-      1. LangChain chain (Gemini 2.0 Flash) → enhanced architectural prompt
-      2. Imagen 3 (imagen-3.0-generate-002) → PNG image bytes
+    Uses the google-genai SDK when installed, falls back to a direct REST call
+    so it works even without the SDK package installed.
 
     Returns PNG bytes, or None if GOOGLE_API_KEY is missing / call fails.
     """
     api_key = os.getenv("GOOGLE_API_KEY")
-    if not api_key or not _DEPS_OK:
+    if not api_key or "your_" in api_key:
         return None
 
-    # Step 1 — enhance prompt via LangChain chain
+    # Step 1 — build the image prompt (LangChain chain if available, else fallback)
     try:
         chain = _make_chain(api_key)
-        enhanced_prompt = chain.invoke({
-            "building_type": building_type,
-            "style": style,
-            "floors": floors,
-            "size": size,
-        })
+        if chain is not None:
+            enhanced_prompt = chain.invoke({
+                "building_type": building_type,
+                "style": style,
+                "floors": floors,
+                "size": size,
+            })
+        else:
+            enhanced_prompt = _fallback_prompt(style, building_type, floors, size)
     except Exception as e:
         print(f"[gemini_renderer] Prompt chain failed, using fallback: {e}")
         enhanced_prompt = _fallback_prompt(style, building_type, floors, size)
 
-    # Step 2 — generate image via Imagen 3
-    try:
-        client = genai.Client(api_key=api_key)
-        response = client.models.generate_images(
-            model="imagen-3.0-generate-002",
-            prompt=enhanced_prompt,
-            config=genai_types.GenerateImagesConfig(
-                number_of_images=1,
-                aspect_ratio="3:4",
-                safety_filter_level="block_low_and_above",
-                person_generation="dont_allow",
-            ),
-        )
-
-        if not response.generated_images:
-            print("[gemini_renderer] Imagen 3 returned no images")
+    # Step 2 — generate image via SDK if available, else REST
+    if _GENAI_OK:
+        try:
+            client = genai.Client(api_key=api_key)
+            response = client.models.generate_images(
+                model="imagen-3.0-generate-002",
+                prompt=enhanced_prompt,
+                config=genai_types.GenerateImagesConfig(
+                    number_of_images=1,
+                    aspect_ratio="3:4",
+                    safety_filter_level="block_low_and_above",
+                    person_generation="dont_allow",
+                ),
+            )
+            if not response.generated_images:
+                print("[gemini_renderer] SDK: Imagen 3 returned no images")
+                return None
+            return _normalise(response.generated_images[0].image.image_bytes)
+        except Exception as e:
+            print(f"[gemini_renderer] SDK call failed: {e}")
             return None
 
-        raw_bytes = response.generated_images[0].image.image_bytes
-        return _normalise(raw_bytes)
-
-    except Exception as e:
-        print(f"[gemini_renderer] Imagen 3 call failed: {e}")
-        return None
+    # SDK not installed — fall back to REST
+    return _imagen_via_rest(api_key, enhanced_prompt)
