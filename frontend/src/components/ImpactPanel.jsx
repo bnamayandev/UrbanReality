@@ -1,8 +1,8 @@
-import { useState, useEffect } from 'react'
-import { Leaf, Car, TrendingUp, Building2, Home, ChevronDown, ChevronUp, ImageIcon, Loader } from 'lucide-react'
+import { useState } from 'react'
+import { Leaf, Car, TrendingUp, Building2, Home, ChevronDown, ChevronUp } from 'lucide-react'
 import { ScoreBar } from './ScoreBar'
 import { ChatBox } from './ChatBox'
-import { generateBuildingImage, buildingTypeToImageParams } from '../api'
+import { Building3DView } from './Building3DView'
 
 const DIMENSIONS = [
   { key: 'environmental', label: 'Environmental',  Icon: Leaf },
@@ -74,71 +74,7 @@ function LoadingState({ message }) {
   )
 }
 
-function BuildingPreview({ building }) {
-  const [imgSrc, setImgSrc]   = useState(null)
-  const [imgLoading, setImgLoading] = useState(false)
-  const [imgError,  setImgError]   = useState(false)
-
-  useEffect(() => {
-    if (!building) return
-    setImgSrc(null)
-    setImgError(false)
-    setImgLoading(true)
-    const params = buildingTypeToImageParams(building.type, building.floors)
-    generateBuildingImage(params)
-      .then(data => {
-        if (data.image_b64) setImgSrc(`data:image/png;base64,${data.image_b64}`)
-        else setImgError(true)
-      })
-      .catch(() => setImgError(true))
-      .finally(() => setImgLoading(false))
-  }, [building?.id])
-
-  return (
-    <div style={{
-      background: 'var(--surface)',
-      border: '1px solid var(--border)',
-      borderRadius: 'var(--radius)',
-      overflow: 'hidden',
-      aspectRatio: '16/9',
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      position: 'relative',
-    }}>
-      {imgLoading && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '8px', color: 'var(--text-3)' }}>
-          <Loader size={18} style={{ animation: 'spin 1s linear infinite' }} />
-          <span style={{ fontSize: '11px' }}>Rendering building...</span>
-        </div>
-      )}
-      {imgSrc && !imgLoading && (
-        <img src={imgSrc} alt="Building preview" style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
-      )}
-      {imgError && !imgLoading && (
-        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '6px', color: 'var(--text-3)' }}>
-          <ImageIcon size={20} />
-          <span style={{ fontSize: '11px' }}>Preview unavailable</span>
-          {/* TODO: teammates — connect ML image generation here */}
-        </div>
-      )}
-      {/* Label */}
-      <div style={{
-        position: 'absolute', bottom: 8, left: 8,
-        background: 'rgba(0,0,0,0.7)',
-        border: '1px solid var(--border)',
-        borderRadius: '3px',
-        padding: '2px 7px',
-        fontSize: '10px',
-        color: 'var(--text-2)',
-        fontFamily: 'var(--mono)',
-      }}>
-        2D elevation · {building?.floors}F · {building?.type}
-      </div>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
-    </div>
-  )
-}
-
-export function ImpactPanel({ building, impact, loading, loadingMessage, error }) {
+export function ImpactPanel({ building, impact, loading, loadingMessage, error, renderPayload }) {
   const [expanded, setExpanded] = useState(true)
   const [showChat, setShowChat] = useState(false)
 
@@ -214,9 +150,26 @@ export function ImpactPanel({ building, impact, loading, loadingMessage, error }
 
         {impact && !loading && (
           <>
-            {/* Building preview */}
+            {/* 3D building view — Rehan/Ben replace Building3DView internals with Three.js */}
             <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
-              <BuildingPreview building={building} />
+              <Building3DView
+                renderPayload={renderPayload}
+                style={{ aspectRatio: '4/3', width: '100%' }}
+              />
+              {/* Natural language description — shown below the 3D view */}
+              {renderPayload?.naturalLanguage && (
+                <div style={{
+                  marginTop: 8, padding: '8px 10px',
+                  background: 'var(--surface)', border: '1px solid var(--border)',
+                  borderRadius: 'var(--radius)', fontSize: '11px', color: 'var(--text-2)',
+                  lineHeight: 1.6,
+                }}>
+                  <span style={{ color: 'var(--text-3)', fontSize: '9px', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', display: 'block', marginBottom: 3 }}>
+                    {renderPayload.isUpdate ? 'Change description' : 'Building description'}
+                  </span>
+                  {renderPayload.naturalLanguage}
+                </div>
+              )}
             </div>
 
             {/* Impact scores */}

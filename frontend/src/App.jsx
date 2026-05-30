@@ -1,22 +1,27 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Header } from './components/Header'
 import { Map } from './components/Map'
 import { BuildingForm } from './components/BuildingForm'
 import { ImpactPanel } from './components/ImpactPanel'
 import { useBuilding } from './hooks/useBuilding'
 import { useImpact } from './hooks/useImpact'
+import { useBuilding3D } from './hooks/useBuilding3D'
 import { getBuildings } from './api'
 
 export default function App() {
-  const [coord,    setCoord]    = useState(null)
-  const [formData, setFormData] = useState({ floors: 24, footprint_m2: 2000, type: 'residential (high-rise)' })
-  const [existing, setExisting] = useState([])
-  const [selected, setSelected] = useState(null)
-  const [panelOpen, setPanelOpen] = useState(false)
+  const [coord,         setCoord]         = useState(null)
+  const [formData,      setFormData]       = useState({ floors: 24, footprint_m2: 2000, type: 'residential (high-rise)' })
+  const [existing,      setExisting]       = useState([])
+  const [selected,      setSelected]       = useState(null)
+  const [panelOpen,     setPanelOpen]      = useState(false)
+  const [renderPayload, setRenderPayload]  = useState(null)
 
   const { building, loading: buildingLoading, submit, reset } = useBuilding()
   const buildingId = building?.id || selected?.id
   const { impact, loading: impactLoading, error: impactError, loadingMessage } = useImpact(buildingId)
+
+  // 3D rendering hook — emits structured payloads on every create/update
+  const { emit: emit3D, reset: reset3D } = useBuilding3D(setRenderPayload)
 
   useEffect(() => {
     getBuildings().then(setExisting).catch(() => {})
@@ -30,20 +35,28 @@ export default function App() {
     setFormData({ floors: data.floors, footprint_m2: data.footprint_m2, type: data.type })
     setSelected(null)
     const result = await submit(data)
-    if (result) getBuildings().then(setExisting).catch(() => {})
+    if (result) {
+      // Emit 3D render payload — isUpdate is determined automatically by the hook
+      emit3D(result.id, data)
+      getBuildings().then(setExisting).catch(() => {})
+    }
   }
 
   const handleReset = () => {
     reset()
+    reset3D()
     setCoord(null)
     setSelected(null)
     setPanelOpen(false)
+    setRenderPayload(null)
   }
 
   const handleSelectExisting = (b) => {
     reset()
+    reset3D()
     setCoord(null)
     setSelected(b)
+    setRenderPayload(null)
   }
 
   const activeBuilding = building || selected
@@ -103,6 +116,7 @@ export default function App() {
             loading={impactLoading}
             loadingMessage={loadingMessage}
             error={impactError}
+            renderPayload={renderPayload}
           />
         </div>
       </div>
