@@ -364,7 +364,7 @@ function ExistingMarkers({ buildings, onSelect, selected }) {
 }
 
 // ── Main Map component ─────────────────────────────────────────────────────────
-export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting, readOnly = false, mode = 'builder', mapPreview = null, trellisGlbUrl = null, onBack = null }) {
+export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting, readOnly = false, mode = 'builder', mapPreview = null, trellisGlbUrl = null }) {
   const mapRef = useRef(null)
   const [selectedExisting, setSelectedExisting] = useState(null)
   const isDark = mode === 'builder'
@@ -501,9 +501,7 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
   const hintColor    = 'var(--text-2)'
 
   const zoneColor  = isBlocked ? '#ff4444' : accent
-  // eslint-disable-next-line no-unused-vars
   const zoneBg     = isBlocked ? 'rgba(255,68,68,0.12)' : accentBg
-  // eslint-disable-next-line no-unused-vars
   const zoneBorder = isBlocked ? 'rgba(255,68,68,0.5)'  : accentBorder
 
   const pillBase = {
