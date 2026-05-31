@@ -397,9 +397,15 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
     mapRef.current?.flyTo({ center: [b.lng, b.lat], zoom: 15.5, pitch: 50, duration: 700 })
   }
 
-  // While drawing show the raw rectangle; once GLB loads switch to actual scaled footprint
-  const displayGeo = (!isDrawMode && rectCoord && buildingFootprint)
-    ? footprintGeo(rectCoord, buildingFootprint.width, buildingFootprint.depth, rotation)
+  // While drawing show the raw rectangle. Once placed, apply rotation —
+  // use GLB-scaled footprint if loaded, else the drawn rect dimensions.
+  const displayGeo = (!isDrawMode && rectCoord && (buildingFootprint || rectDims))
+    ? footprintGeo(
+        rectCoord,
+        buildingFootprint?.width ?? rectDims.width,
+        buildingFootprint?.depth ?? rectDims.depth,
+        rotation,
+      )
     : (rectangle ?? EMPTY_GEO)
 
   const displayArea = buildingFootprint
