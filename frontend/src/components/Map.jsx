@@ -91,6 +91,28 @@ function rectDimensions(start, end) {
   return { width, depth }
 }
 
+// Approximate square footprint for an existing building centred on its lat/lng
+function buildingApproxFootprint(b) {
+  const sideM = Math.sqrt(b.footprint_m2 || 2000)
+  const halfLat = (sideM / 2) / 111320
+  const halfLng = (sideM / 2) / (111320 * Math.cos(b.lat * Math.PI / 180))
+  return turf.polygon([[
+    [b.lng - halfLng, b.lat - halfLat],
+    [b.lng + halfLng, b.lat - halfLat],
+    [b.lng + halfLng, b.lat + halfLat],
+    [b.lng - halfLng, b.lat + halfLat],
+    [b.lng - halfLng, b.lat - halfLat],
+  ]])
+}
+
+function hasConflict(rectGeo, buildings) {
+  if (!rectGeo || !buildings?.length) return false
+  return buildings.some(b => {
+    try { return turf.booleanIntersects(rectGeo, buildingApproxFootprint(b)) }
+    catch { return false }
+  })
+}
+
 function compassLabel(deg) {
   const dirs = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
   return dirs[Math.round(deg / 45) % 8]
@@ -206,7 +228,7 @@ function useBillboardLayer(mapRef, coord, imageSrc, floors) {
 
 // ── GLB building layer ─────────────────────────────────────────────────────────
 
-function buildGLBLayer(coord, rectWidth, rectDepth, rotationRef, onDimsReady) {
+function buildGLBLayer(coord, rectWidth, rectDepth, rotationRef, onDimsReady, glbUrl) {
   const mercator = mapboxgl.MercatorCoordinate.fromLngLat([coord.lng, coord.lat], 0)
   const mpu = mercator.meterInMercatorCoordinateUnits()
 
@@ -227,7 +249,7 @@ function buildGLBLayer(coord, rectWidth, rectDepth, rotationRef, onDimsReady) {
       sun.position.set(0.5, -1, 1).normalize()
       scene.add(sun)
 
-      new GLTFLoader().load('/source/appartamenti.glb', (gltf) => {
+      new GLTFLoader().load(glbUrl, (gltf) => {
         const box = new THREE.Box3().setFromObject(gltf.scene)
         const size = new THREE.Vector3()
         const center = new THREE.Vector3()
@@ -270,13 +292,13 @@ function buildGLBLayer(coord, rectWidth, rectDepth, rotationRef, onDimsReady) {
   }
 }
 
-function useGLBLayer(mapRef, coord, rectDims, rotationRef, onDimsReady) {
+function useGLBLayer(mapRef, coord, rectDims, rotationRef, onDimsReady, glbUrl) {
   useEffect(() => {
-    if (!coord || !rectDims) return
+    if (!coord || !rectDims || !glbUrl) return
     const map = mapRef.current?.getMap?.()
     if (!map) return
 
-    const create = () => buildGLBLayer(coord, rectDims.width, rectDims.depth, rotationRef, onDimsReady)
+    const create = () => buildGLBLayer(coord, rectDims.width, rectDims.depth, rotationRef, onDimsReady, glbUrl)
 
     const addLayer = () => {
       if (map.getLayer(GLB_LAYER_ID)) map.removeLayer(GLB_LAYER_ID)
@@ -296,7 +318,7 @@ function useGLBLayer(mapRef, coord, rectDims, rotationRef, onDimsReady) {
       map.off('style.load', onStyleLoad)
       if (map.getLayer(GLB_LAYER_ID)) map.removeLayer(GLB_LAYER_ID)
     }
-  }, [coord, rectDims, mapRef])
+  }, [coord, rectDims, mapRef, glbUrl])
 }
 
 // ── Existing building popups ───────────────────────────────────────────────────
@@ -342,6 +364,7 @@ function ExistingMarkers({ buildings, onSelect, selected }) {
 }
 
 // ── Main Map component ─────────────────────────────────────────────────────────
+export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting, readOnly = false, mode = 'builder', mapPreview = null, trellisGlbUrl = null }) {
 export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting, readOnly = false, mode = 'builder', mapPreview = null, onBack = null }) {
   const mapRef = useRef(null)
   const [selectedExisting, setSelectedExisting] = useState(null)
@@ -359,6 +382,9 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
   const [rotation, setRotation] = useState(0)
   const rotationRef = useRef(0)
   const [buildingFootprint, setBuildingFootprint] = useState(null)
+  const [isBlocked, setIsBlocked] = useState(false)
+  const existingBuildingsRef = useRef(existingBuildings)
+  useEffect(() => { existingBuildingsRef.current = existingBuildings }, [existingBuildings])
 
   // Enable trackpad two-finger rotation on mount
   useEffect(() => {
@@ -369,7 +395,7 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
   }, [])
 
   // GLB building at drawn area
-  useGLBLayer(mapRef, rectCoord, rectDims, rotationRef, setBuildingFootprint)
+  useGLBLayer(mapRef, rectCoord, rectDims, rotationRef, setBuildingFootprint, trellisGlbUrl)
 
   // AI image billboard at same coord (driven by parent's coord prop)
   useBillboardLayer(mapRef, coord, mapPreview?.image || null, buildingForm?.floors)
@@ -396,6 +422,7 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
       const geo = makeRectGeo(startPoint, end)
       setRectangle(geo)
       setRectArea(turf.area(geo))
+      setIsBlocked(hasConflict(geo, existingBuildingsRef.current))
     }
 
     const onMouseUp = (e) => {
@@ -406,17 +433,23 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
       startPoint = null
 
       const geo = makeRectGeo(start, end)
-      const dims = rectDimensions(start, end)
-      const center = rectCenter(start, end)
+      const blocked = hasConflict(geo, existingBuildingsRef.current)
 
       setRectangle(geo)
       setRectArea(turf.area(geo))
+      setIsBlocked(blocked)
+      setIsDrawMode(false)
+
+      if (blocked) return  // don't place building — prompt user to redraw
+
+      const dims = rectDimensions(start, end)
+      const center = rectCenter(start, end)
+
       setRectDims(dims)
       setRectCoord(center)
       setRotation(0)
       rotationRef.current = 0
       setBuildingFootprint(null)
-      setIsDrawMode(false)
       onCoordSelect?.(center)
 
       mapRef.current?.flyTo({
@@ -468,6 +501,10 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
   const hintBg       = isDark ? 'rgba(10,10,15,0.85)'  : 'rgba(245,246,250,0.90)'
   const hintColor    = 'var(--text-2)'
 
+  const zoneColor  = isBlocked ? '#ff4444' : accent
+  const zoneBg     = isBlocked ? 'rgba(255,68,68,0.12)' : accentBg
+  const zoneBorder = isBlocked ? 'rgba(255,68,68,0.5)'  : accentBorder
+
   const pillBase = {
     borderRadius: 20, padding: '8px 20px', fontSize: 12,
     backdropFilter: 'blur(10px)', whiteSpace: 'nowrap',
@@ -501,12 +538,12 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
           <Layer
             id="draw-rect-fill"
             type="fill"
-            paint={{ 'fill-color': accent, 'fill-opacity': 0.10 }}
+            paint={{ 'fill-color': zoneColor, 'fill-opacity': 0.10 }}
           />
           <Layer
             id="draw-rect-outline"
             type="line"
-            paint={{ 'line-color': accent, 'line-width': 2, 'line-dasharray': [4, 2] }}
+            paint={{ 'line-color': zoneColor, 'line-width': 2, 'line-dasharray': isBlocked ? [2, 2] : [4, 2] }}
           />
         </Source>
 
@@ -560,11 +597,11 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
       {!readOnly && (
         <div style={{ position: 'absolute', top: 16, left: 16, zIndex: 1 }}>
           <button
-            onClick={() => setIsDrawMode(v => !v)}
+            onClick={() => { setIsDrawMode(v => !v); setIsBlocked(false) }}
             style={{
-              background: isDrawMode ? accent : hintBg,
-              color: isDrawMode ? '#000' : accent,
-              border: `1.5px solid ${accentBorder}`,
+              background: isDrawMode ? accent : isBlocked ? 'rgba(255,68,68,0.15)' : hintBg,
+              color: isDrawMode ? '#000' : isBlocked ? '#ff6666' : accent,
+              border: `1.5px solid ${isBlocked ? 'rgba(255,68,68,0.5)' : accentBorder}`,
               borderRadius: 8, padding: '8px 16px',
               fontSize: 12, fontWeight: 600, cursor: 'pointer',
               backdropFilter: 'blur(10px)', letterSpacing: '0.02em',
@@ -575,8 +612,25 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
         </div>
       )}
 
+      {/* Blocked zone warning */}
+      {isBlocked && !isDrawMode && !readOnly && (
+        <div style={{
+          position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,
+        }}>
+          <div style={{
+            background: 'rgba(255,68,68,0.15)', border: '1px solid rgba(255,68,68,0.5)',
+            borderRadius: 20, padding: '8px 20px',
+            fontSize: 12, color: '#ff6666', fontWeight: 600,
+            backdropFilter: 'blur(10px)', whiteSpace: 'nowrap',
+          }}>
+            Zone overlaps an existing building — redraw to continue
+          </div>
+        </div>
+      )}
+
       {/* Area label + rotation control */}
-      {rectCoord && !isDrawMode && !readOnly && (
+      {rectCoord && !isBlocked && !isDrawMode && !readOnly && (
         <div style={{
           position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
           display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8,

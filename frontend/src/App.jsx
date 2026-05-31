@@ -1,9 +1,10 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { Header } from './components/Header'
 import { Map } from './components/Map'
 import { BuildingForm } from './components/BuildingForm'
 import { ImpactPanel } from './components/ImpactPanel'
 import { CitizenPanel } from './components/CitizenPanel'
+import { ImageConfirmModal } from './components/ImageConfirmModal'
 import AuthModal from './components/AuthModal'
 import { useBuilding } from './hooks/useBuilding'
 import { useImpact } from './hooks/useImpact'
@@ -12,10 +13,15 @@ import { useAuth } from './context/AuthContext'
 import { getBuildings } from './api'
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
-
 const DEFAULT_FORM = { name: '', description: '', floors: 24 }
 
 export default function App() {
+  const [mode,     setMode]     = useState('builder')
+  const [coord,    setCoord]    = useState(null)
+  const [existing, setExisting] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [panelOpen, setPanelOpen] = useState(false)
+  const [renderPayload, setRenderPayload] = useState(null)
   const [mode,          setMode]          = useState('citizen')    // default citizen; builder unlocks on auth
   const [coord,         setCoord]         = useState(null)
   const [formData,      setFormData]      = useState({ floors: 24, footprint_m2: 2000, type: 'residential (high-rise)' })
@@ -29,15 +35,19 @@ export default function App() {
 
   const { isOrgUser } = useAuth()
 
-  const previewTimerRef = useRef(null)
-  const previewAbortRef = useRef(null)
+  // ── Image + TRELLIS flow ──────────────────────────────────────────────────
+  const [mapPreview,        setMapPreview]        = useState({ image: null, loading: false })
+  const [confirmedImageSrc, setConfirmedImageSrc] = useState(null)
+  const [imageModal,        setImageModal]        = useState({ open: false, imageSrc: null, imageB64: null })
+  const [trellisGlbUrl,     setTrellisGlbUrl]     = useState(null)
+  const [pendingFormData,   setPendingFormData]   = useState(null)
+  const [imageLoading,      setImageLoading]      = useState(false)
 
   const { building, loading: buildingLoading, submit, reset } = useBuilding()
   const buildingId = building?.id || selected?.id
   const { impact, loading: impactLoading, error: impactError, loadingMessage } = useImpact(buildingId)
   const { emit: emit3D, reset: reset3D } = useBuilding3D(setRenderPayload)
 
-  // Apply mode to <html> so CSS variables switch
   useEffect(() => {
     document.documentElement.setAttribute('data-mode', mode)
   }, [mode])
@@ -46,7 +56,10 @@ export default function App() {
     getBuildings().then(setExisting).catch(() => {})
   }, [])
 
+  // Open panel when TRELLIS finishes or a building is saved/selected
   useEffect(() => {
+    if (building || selected || trellisGlbUrl) setPanelOpen(true)
+  }, [building, selected, trellisGlbUrl])
     // eslint-disable-next-line react-hooks/set-state-in-effect
     if (building || selected) setPanelOpen(true)
   }, [building, selected])
@@ -58,37 +71,64 @@ export default function App() {
     const controller = new AbortController()
     previewAbortRef.current = controller
 
+  // ── Step 1: Generate image ────────────────────────────────────────────────
+  const handleGenerateImage = useCallback(async (data) => {
+    setImageLoading(true)
     setMapPreview({ image: null, loading: true })
+    setPendingFormData(data)
+
+    const prompt = data.description?.trim()
+      || `A modern ${data.floors || 24}-floor urban building in Toronto`
+
     try {
-      const prompt = formData.description?.trim()
-        || `A modern ${formData.floors || 24}-floor urban building in Toronto`
       const res = await fetch(`${API_BASE}/generate/building-image`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ prompt }),
-        signal: controller.signal,
       })
-      if (!res.ok) throw new Error(`${res.status}`)
-      const data = await res.json()
-      setMapPreview({ image: data.image_b64 ? `data:image/png;base64,${data.image_b64}` : null, loading: false })
+      if (!res.ok) throw new Error(`Image generation failed (${res.status})`)
+      const result = await res.json()
+
+      if (result.image_b64) {
+        const src = `data:image/png;base64,${result.image_b64}`
+        setMapPreview({ image: src, loading: false })
+        setConfirmedImageSrc(src)
+        setImageModal({ open: true, imageSrc: src, imageB64: result.image_b64 })
+      }
     } catch (e) {
-      if (e.name !== 'AbortError') setMapPreview({ image: null, loading: false })
+      console.error('Image generation failed:', e)
+      setMapPreview({ image: null, loading: false })
+    } finally {
+      setImageLoading(false)
     }
-  }
+  }, [])
 
-  // Trigger map preview whenever building type, material, or coord changes
-  // (popup already guards on coord being truthy, so no state reset needed here)
-  useEffect(() => {
-    if (!coord) return
-    clearTimeout(previewTimerRef.current)
-    previewTimerRef.current = setTimeout(() => {
-      generateMapPreview(liveForm, coord)
-    }, 900)
-    return () => clearTimeout(previewTimerRef.current)
-  }, [liveForm.description, coord]) // eslint-disable-line react-hooks/exhaustive-deps
+  // ── Step 2: User denies image → back to form ──────────────────────────────
+  const handleImageDeny = useCallback(() => {
+    setImageModal({ open: false, imageSrc: null, imageB64: null })
+    setMapPreview({ image: null, loading: false })
+    setConfirmedImageSrc(null)
+  }, [])
 
-  const handleFormChange = useCallback((data) => setLiveForm(data), [])
+  // ── Step 3: TRELLIS completes → GLB on map + open panel ──────────────────
+  const handleTrellisComplete = useCallback((glbUrl) => {
+    setTrellisGlbUrl(glbUrl)
+    setImageModal({ open: false, imageSrc: null, imageB64: null })
+    setMapPreview({ image: null, loading: false })  // remove billboard; 3D model takes over
+  }, [])
 
+  // ── Step 4: Analyze Impact (user-triggered from panel) ────────────────────
+  const handleAnalyzeImpact = useCallback(async () => {
+    if (!pendingFormData) return
+    setSelected(null)
+    const result = await submit(pendingFormData)
+    if (result) {
+      emit3D(result.id, pendingFormData)
+      getBuildings().then(setExisting).catch(() => {})
+    }
+  }, [pendingFormData, submit, emit3D])
+
+  // ── Mode + reset ──────────────────────────────────────────────────────────
   const handleModeChange = useCallback((newMode) => {
     if (newMode === 'builder' && !isOrgUser) {
       setShowAuthModal(true)
@@ -99,8 +139,8 @@ export default function App() {
       reset(); reset3D()
       setCoord(null); setPanelOpen(false); setRenderPayload(null)
       setMapPreview({ image: null, loading: false })
-      clearTimeout(previewTimerRef.current)
-      if (previewAbortRef.current) previewAbortRef.current.abort()
+      setImageModal({ open: false, imageSrc: null, imageB64: null })
+      setTrellisGlbUrl(null); setConfirmedImageSrc(null); setPendingFormData(null)
     }
   }, [isOrgUser, reset, reset3D])
 
@@ -112,29 +152,19 @@ export default function App() {
     }
   }, [isOrgUser, showAuthModal])
 
-  const handleSubmit = async (data) => {
-    setFormData({ floors: data.floors, footprint_m2: 2000, type: 'mixed-use' })
-    setSelected(null)
-    const result = await submit(data)
-    if (result) {
-      emit3D(result.id, data)
-      getBuildings().then(setExisting).catch(() => {})
-    }
-  }
-
   const handleReset = () => {
     reset(); reset3D()
     setCoord(null); setSelected(null); setPanelOpen(false); setRenderPayload(null)
     setMapPreview({ image: null, loading: false })
-    setLiveForm(DEFAULT_FORM)
-    clearTimeout(previewTimerRef.current)
-    if (previewAbortRef.current) previewAbortRef.current.abort()
+    setImageModal({ open: false, imageSrc: null, imageB64: null })
+    setTrellisGlbUrl(null); setConfirmedImageSrc(null); setPendingFormData(null)
   }
 
   const handleSelectExisting = (b) => {
     reset(); reset3D()
     setCoord(null); setSelected(b); setRenderPayload(null)
     setMapPreview({ image: null, loading: false })
+    setTrellisGlbUrl(null); setConfirmedImageSrc(null)
   }
 
   const activeBuilding = building || selected
@@ -142,6 +172,7 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: 'var(--bg)', transition: 'background 0.2s' }}>
+      <Header buildingCount={existing.length} mode={mode} onModeChange={handleModeChange} />
       <Header
         buildingCount={existing.length}
         mode={mode}
@@ -153,25 +184,27 @@ export default function App() {
         <Map
           onCoordSelect={isCitizen ? undefined : setCoord}
           coord={isCitizen ? null : coord}
-          buildingForm={isCitizen ? null : formData}
+          buildingForm={isCitizen ? null : { floors: pendingFormData?.floors ?? 24, footprint_m2: 2000, type: 'mixed-use' }}
           existingBuildings={existing}
           onSelectExisting={handleSelectExisting}
           readOnly={isCitizen}
           mode={mode}
           mapPreview={isCitizen ? null : mapPreview}
+          trellisGlbUrl={isCitizen ? null : trellisGlbUrl}
         />
 
-        {/* ── BUILDER mode UI ── */}
+        {/* Builder form — shown until panel opens */}
         {!isCitizen && !panelOpen && (
           <BuildingForm
             coord={coord}
-            onSubmit={handleSubmit}
-            onReset={coord || building ? handleReset : null}
-            loading={buildingLoading}
-            onFormChange={handleFormChange}
+            onSubmit={handleGenerateImage}
+            onReset={coord ? handleReset : null}
+            loading={imageLoading}
+            onFormChange={() => {}}
           />
         )}
 
+        {/* "New building" chip when panel is open */}
         {!isCitizen && panelOpen && !selected && (
           <div style={{
             position: 'absolute', top: 60, left: 16,
@@ -180,16 +213,15 @@ export default function App() {
             display: 'flex', alignItems: 'center', gap: '10px',
           }}>
             <span style={{ fontSize: '12px', color: 'var(--text-2)' }}>
-              {building?.name || `Building #${building?.id}`}
+              {building?.name || (trellisGlbUrl ? '3D Model Ready' : `Building #${building?.id}`)}
             </span>
-            <button className="btn btn-ghost" onClick={handleReset}
-              style={{ padding: '4px 10px', fontSize: '11px' }}>
+            <button className="btn btn-ghost" onClick={handleReset} style={{ padding: '4px 10px', fontSize: '11px' }}>
               New building
             </button>
           </div>
         )}
 
-        {/* ── BUILDER impact panel ── */}
+        {/* Impact panel */}
         {!isCitizen && (
           <div style={{
             width: panelOpen ? 'var(--panel-w)' : '0',
@@ -203,21 +235,27 @@ export default function App() {
               loadingMessage={loadingMessage}
               error={impactError}
               renderPayload={renderPayload}
+              confirmedImageSrc={confirmedImageSrc}
+              trellisGlbUrl={trellisGlbUrl}
+              onAnalyzeImpact={handleAnalyzeImpact}
             />
           </div>
         )}
 
-        {/* ── CITIZEN panel — always visible ── */}
         {isCitizen && (
-          <CitizenPanel
-            building={activeBuilding}
-            impact={impact}
-            loading={impactLoading}
-            existingBuildings={existing}
-          />
+          <CitizenPanel building={activeBuilding} impact={impact} loading={impactLoading} existingBuildings={existing} />
         )}
       </div>
 
+      {/* Image confirm / TRELLIS modal */}
+      {imageModal.open && (
+        <ImageConfirmModal
+          imageSrc={imageModal.imageSrc}
+          imageB64={imageModal.imageB64}
+          onConfirm={handleTrellisComplete}
+          onDeny={handleImageDeny}
+        />
+      )}
       {/* Auth modal */}
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </div>

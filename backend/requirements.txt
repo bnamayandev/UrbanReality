@@ -21,4 +21,5 @@ google-genai
 openai
 scikit-learn
 xgboost
+paramiko
 python-jose[cryptography]

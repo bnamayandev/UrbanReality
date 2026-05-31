@@ -176,7 +176,7 @@ export function BuildingForm({ coord, onSubmit, onReset, loading, onFormChange }
           disabled={!hasCoord || loading}
           style={{ width: '100%', padding: '11px' }}
         >
-          {loading ? 'Analyzing…' : 'Analyze Impact'}
+          {loading ? 'Generating…' : 'Generate Image'}
         </button>
 
         {!hasCoord && (
