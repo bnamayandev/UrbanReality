@@ -16,14 +16,33 @@ from dotenv import load_dotenv
 from PIL import Image
 
 
+LANDMARK_HINTS = (
+    "cn tower", "eiffel", "empire state", "burj", "shard", "petronas",
+    "willis tower", "sears tower", "chrysler", "freedom tower", "one world",
+    "taipei 101", "kingdom centre", "shanghai tower", "oriental pearl",
+    "space needle", "leaning tower", "big ben", "louvre", "colosseum",
+    "rogers centre", "skydome", "guggenheim", "sydney opera",
+)
+
+
 def _build_prompt(user_description: str) -> str:
+    desc = (user_description or "").strip()
+    is_landmark = any(name in desc.lower() for name in LANDMARK_HINTS)
+
+    if is_landmark:
+        # Preserve landmark identity — don't force "front elevation" framing
+        return (
+            f"{desc}. Iconic, recognizable view of this exact landmark. "
+            "Full structure visible from base to top, nothing cropped. "
+            "Solid light grey #D3D3D3 background — no sky, no ground, no people, no trees. "
+            "Photorealistic architectural render, studio lighting, no text or watermarks."
+        )
+
     return (
-        f"Architectural front elevation of: {user_description}. "
-        "Perfectly flat, dead-on front view, zero perspective. "
+        f"Photorealistic architectural render of: {desc}. "
+        "Full front-facing view of the building, complete from base to roofline. "
         "Solid light grey #D3D3D3 background — no sky, no ground, no gradient. "
-        "Complete building visible from roofline to base, nothing cropped. "
-        "Ultra-photorealistic architectural render, studio lighting. "
-        "No people, no trees, no vehicles, no watermarks, no text."
+        "Studio lighting, no people, no trees, no vehicles, no text, no watermarks."
     )
 
 
