@@ -225,6 +225,8 @@ data/*.tiff
 # Trained ML model artifacts (reproducible via train_models.py)
 backend/models/*.pkl
 backend/models/*.json
+ml/models/*.pkl
+ml/models/*.json
 
 # Frontend
 frontend/node_modules/
@@ -234,4 +236,6 @@ frontend/.env.local
 
 # Docker
 .docker/
-.
+
+# Root-level lock file (no root package.json in source control)
+package-lock.json
