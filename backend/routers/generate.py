@@ -10,6 +10,7 @@ shows an "add your API key" message in that case.
 
 import os
 import base64
+import traceback
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 from typing import Optional
@@ -74,34 +75,40 @@ def _infer_params(prompt: str) -> tuple[str, str, int, str]:
 
 @router.post("/building-image", response_model=GenerateResponse)
 def generate_image(req: GenerateRequest):
-    # Return 503 when API key is missing — frontend shows a helpful message
-    api_key = os.getenv("OPENAI_API_KEY", "")
-    if not api_key or api_key.startswith("your_") or api_key.startswith("sk-your"):
-        raise HTTPException(status_code=503, detail="OPENAI_API_KEY not configured — add it to backend/.env")
-
+    # No early 503: when OPENAI_API_KEY is missing, render_building's Pillow
+    # silhouette kicks in so the demo flow never dead-ends.
     user_desc = req.prompt or (
         f"{req.size or 'medium'} {(req.style or 'modern_glass_tower').replace('_', ' ')} "
         f"{req.building_type or 'building'} {req.floors or 20} floors"
     )
 
-    png, renderer = generate_ai_image(
-        style=req.style or "modern_glass_tower",
-        building_type=req.building_type or "skyscraper",
-        floors=req.floors or 20,
-        size=req.size or "medium",
-        user_description=user_desc,
-    )
+    try:
+        png, renderer = generate_ai_image(
+            style=req.style or "modern_glass_tower",
+            building_type=req.building_type or "skyscraper",
+            floors=req.floors or 20,
+            size=req.size or "medium",
+            user_description=user_desc,
+        )
 
-    # Fallback: parse the prompt so the Pillow render at least matches the description
+        # Fallback: parse the prompt so the Pillow render at least matches the description
+        if png is None:
+            btype, style, floors, size = _infer_params(user_desc)
+            btype  = req.building_type or btype
+            style  = req.style or style
+            floors = req.floors or floors
+            size   = req.size or size
+            png = render_building(btype, style, floors, size)
+            renderer = "Pillow · local"
+    except Exception as e:
+        traceback.print_exc()
+        raise HTTPException(status_code=502, detail=f"Image renderer error: {e}")
+
     if png is None:
-        btype, style, floors, size = _infer_params(user_desc)
-        # Override with explicit params when caller sends them
-        btype  = req.building_type or btype
-        style  = req.style or style
-        floors = req.floors or floors
-        size   = req.size or size
-        png = render_building(btype, style, floors, size)
-        renderer = "Pillow · local"
+        raise HTTPException(
+            status_code=503,
+            detail="Image generation failed — DALL-E returned no image (check OPENAI_API_KEY and quota)",
+        )
 
     return GenerateResponse(
         image_b64=base64.b64encode(png).decode(),
