@@ -11,6 +11,7 @@ export function AuthProvider({ children }) {
 
   // Load any existing session on mount and subscribe to auth changes
   useEffect(() => {
+    if (!supabase) { setLoading(false); return }
     supabase.auth.getSession().then(({ data }) => {
       _applySession(data.session)
     })
@@ -40,12 +41,14 @@ export function AuthProvider({ children }) {
   }
 
   async function signIn(email, password) {
+    if (!supabase) throw new Error('Auth not configured')
     const { data, error } = await supabase.auth.signInWithPassword({ email, password })
     if (error) throw error
     return data
   }
 
   async function signUp(email, password, role, orgName) {
+    if (!supabase) throw new Error('Auth not configured')
     const { data, error } = await supabase.auth.signUp({ email, password })
     if (error) throw error
 
@@ -61,13 +64,14 @@ export function AuthProvider({ children }) {
   }
 
   async function signOut() {
-    await supabase.auth.signOut()
+    if (supabase) await supabase.auth.signOut()
     setProfile(null)
     setSession(null)
     setAuthToken(null)
   }
 
-  const isOrgUser = profile?.role === 'org_member' || profile?.role === 'org_admin'
+  // When Supabase is not configured (no env vars), allow full access for local dev/demo
+  const isOrgUser = !supabase || profile?.role === 'org_member' || profile?.role === 'org_admin'
 
   return (
     <AuthContext.Provider value={{ session, profile, loading, isOrgUser, signIn, signUp, signOut }}>

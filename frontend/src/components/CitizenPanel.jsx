@@ -1,8 +1,6 @@
 import { useState } from 'react'
-import { MapPin, TrendingUp, Home, Leaf, Car, Building2, ChevronDown, ChevronUp, Navigation, Loader2 } from 'lucide-react'
+import { MapPin, TrendingUp, Home, Leaf, Car, Building2, ChevronDown, ChevronUp } from 'lucide-react'
 import { ScoreBar } from './ScoreBar'
-import { ChatBox } from './ChatBox'
-import { getNearbyBuildings } from '../api'
 
 const DIMENSIONS = [
   { key: 'environmental', label: 'Environmental',  Icon: Leaf },
@@ -12,46 +10,8 @@ const DIMENSIONS = [
   { key: 'housing',       label: 'Housing Supply',  Icon: Home },
 ]
 
-const SUGGESTED_QUESTIONS = [
-  'Will this raise my rent?',
-  'How bad is the traffic impact?',
-  'How many jobs does this create?',
-  'Is this area safe to invest in?',
-  'What happens to the trees here?',
-  'How does this affect transit?',
-]
-
 export function CitizenPanel({ building, impact, loading, existingBuildings = [] }) {
-  const [showScores,    setShowScores]    = useState(true)
-  const [showChat,      setShowChat]      = useState(false)
-  const [nearbyLoading, setNearbyLoading] = useState(false)
-  const [nearbyError,   setNearbyError]   = useState('')
-  const [nearbyList,    setNearbyList]    = useState(null)  // null = not fetched yet
-
-  async function handleNearMe() {
-    setNearbyError('')
-    if (!navigator.geolocation) {
-      setNearbyError('Geolocation is not supported by your browser.')
-      return
-    }
-    setNearbyLoading(true)
-    navigator.geolocation.getCurrentPosition(
-      async (pos) => {
-        try {
-          const results = await getNearbyBuildings(pos.coords.latitude, pos.coords.longitude, 2)
-          setNearbyList(results)
-        } catch (err) {
-          setNearbyError('Could not load nearby buildings.')
-        } finally {
-          setNearbyLoading(false)
-        }
-      },
-      () => {
-        setNearbyError('Location permission denied.')
-        setNearbyLoading(false)
-      }
-    )
-  }
+  const [showScores, setShowScores] = useState(true)
 
   return (
     <div style={{
@@ -74,58 +34,13 @@ export function CitizenPanel({ building, impact, loading, existingBuildings = []
         <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px', color: 'var(--text)' }}>
           Explore Toronto Developments
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--text-2)', marginBottom: '10px' }}>
+        <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>
           {existingBuildings.length} active developments · click a marker to explore
         </div>
-
-        {/* Near me button */}
-        <button
-          onClick={handleNearMe}
-          disabled={nearbyLoading}
-          style={{
-            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
-            background: 'var(--cyan-dim)', border: '1px solid var(--cyan)',
-            borderRadius: 6, padding: '7px 12px',
-            color: 'var(--cyan)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
-          }}
-        >
-          {nearbyLoading
-            ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Finding buildings near you...</>
-            : <><Navigation size={13} /> Buildings near me</>}
-        </button>
-        {nearbyError && <p style={{ fontSize: 11, color: '#f87171', marginTop: 6 }}>{nearbyError}</p>}
-        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
 
-      {/* Nearby buildings list (shown after "near me" is clicked) */}
-      {nearbyList !== null && !building && (
-        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>
-            {nearbyList.length === 0
-              ? 'No buildings found within 2 km.'
-              : `${nearbyList.length} building${nearbyList.length !== 1 ? 's' : ''} within 2 km of your location`}
-          </div>
-          {nearbyList.map(b => (
-            <div key={b.id} style={{
-              background: 'var(--surface)', border: '1px solid var(--border)',
-              borderRadius: 'var(--radius)', padding: '10px 12px',
-            }}>
-              <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--text)', marginBottom: 3 }}>
-                {b.name || `Development #${b.id}`}
-              </div>
-              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                <span className="tag tag-dim">{b.type}</span>
-                <span className="tag tag-dim">{b.floors} floors</span>
-                <span className="tag tag-cyan">{b.status}</span>
-                {b.org_name && <span className="tag tag-dim">{b.org_name}</span>}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* No building selected (default idle state) */}
-      {!building && !loading && nearbyList === null && (
+      {/* No building selected */}
+      {!building && !loading && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '24px', color: 'var(--text-3)' }}>
           <MapPin size={32} strokeWidth={1} />
           <div style={{ textAlign: 'center' }}>
@@ -164,11 +79,12 @@ export function CitizenPanel({ building, impact, loading, existingBuildings = []
         </div>
       )}
 
-      {/* Loading impact */}
+      {/* Loading */}
       {loading && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '12px', color: 'var(--text-3)' }}>
           <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid var(--border)', borderTopColor: 'var(--cyan)', animation: 'spin 1s linear infinite' }} />
           <span style={{ fontSize: '12px' }}>Loading impact data...</span>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       )}
 
@@ -182,15 +98,12 @@ export function CitizenPanel({ building, impact, loading, existingBuildings = []
               {building.name || `Development #${building.id}`}
             </div>
             <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap', marginBottom: '10px' }}>
-              <span className="tag tag-dim">{building.type}</span>
-              <span className="tag tag-dim">{building.floors} floors</span>
-              <span className="tag tag-cyan">{building.status || 'Under Review'}</span>
-              {building.org_name && (
-                <span className="tag tag-dim" title="Builder organization">{building.org_name}</span>
-              )}
+              <span className="tag tag-dim">{building.type ? building.type.charAt(0).toUpperCase() + building.type.slice(1) : 'Unknown'}</span>
+              <span className="tag tag-dim">{building.floors} Floors</span>
+              <span className="tag tag-cyan">{building.status ? building.status.charAt(0).toUpperCase() + building.status.slice(1) : 'Under Review'}</span>
             </div>
 
-            {/* Plain-language summary */}
+            {/* Plain-language summary — citizen friendly */}
             <div style={{
               background: 'var(--surface)',
               border: '1px solid var(--border)',
@@ -200,11 +113,12 @@ export function CitizenPanel({ building, impact, loading, existingBuildings = []
               color: 'var(--text-2)',
               lineHeight: 1.7,
             }}>
-              This <strong style={{ color: 'var(--text)' }}>{building.floors}-floor {building.type}</strong> development
-              will add approximately <strong style={{ color: 'var(--text)' }}>{(building.floors * (building.units_per_floor || 10)).toLocaleString()} units</strong> of
-              housing to the area and generate an estimated{' '}
-              <strong style={{ color: 'var(--text)' }}>+{impact.traffic?.score > 60 ? 'significant' : 'moderate'} traffic</strong> impact
-              on nearby intersections.
+              This <strong style={{ color: 'var(--text)' }}>{building.floors}-storey {building.type}</strong> will
+              bring roughly <strong style={{ color: 'var(--text)' }}>{(building.floors * (building.units_per_floor || 10)).toLocaleString()}</strong> new
+              homes to the neighbourhood.
+              {impact.traffic?.score > 60
+                ? ' Expect noticeable changes to traffic in the area.'
+                : ' Traffic impact is expected to be manageable.'}
             </div>
           </div>
 
@@ -216,9 +130,10 @@ export function CitizenPanel({ building, impact, loading, existingBuildings = []
               padding: 0, marginBottom: showScores ? '14px' : 0,
               color: 'var(--text)',
             }}>
-              <span className="label">Impact Scores</span>
+              <span className="label">Neighbourhood Impact</span>
               {showScores ? <ChevronUp size={13} color="var(--text-3)" /> : <ChevronDown size={13} color="var(--text-3)" />}
             </button>
+            <div style={{ fontSize: '10px', color: 'var(--text-3)', marginBottom: showScores ? 12 : 0 }}>How this development affects your neighbourhood (0 = minimal, 100 = major)</div>
             {showScores && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
                 {DIMENSIONS.map(({ key, label, Icon }) => (
@@ -233,31 +148,7 @@ export function CitizenPanel({ building, impact, loading, existingBuildings = []
               </div>
             )}
           </div>
-
-          {/* Ask AI */}
-          <div style={{ padding: '12px 16px', borderBottom: '1px solid var(--border)' }}>
-            <button className="btn btn-primary" style={{ width: '100%' }}
-              onClick={() => setShowChat(s => !s)}>
-              {showChat ? 'Hide AI Assistant' : 'Ask about this development'}
-            </button>
-            {!showChat && (
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '4px', marginTop: '8px' }}>
-                {SUGGESTED_QUESTIONS.slice(0, 4).map(q => (
-                  <span key={q} style={{
-                    fontSize: '11px', color: 'var(--text-2)',
-                    background: 'var(--surface)', border: '1px solid var(--border)',
-                    borderRadius: '12px', padding: '3px 9px', cursor: 'default',
-                  }}>{q}</span>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
-      )}
-
-      {/* Chat pinned to bottom */}
-      {showChat && building && impact && (
-        <ChatBox buildingId={building?.id} />
       )}
     </div>
   )
