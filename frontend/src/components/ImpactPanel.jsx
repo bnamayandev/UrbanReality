@@ -50,7 +50,7 @@ export function ImpactPanel({
   confirmedImageSrc, trellisGlbUrl, onAnalyzeImpact,
 }) {
   const [expanded, setExpanded] = useState(true)
-  const [showChat, setShowChat] = useState(true)
+  const [showChat, setShowChat] = useState(false)
 
   if (!building && !loading && !trellisGlbUrl) return null
 
@@ -77,11 +77,6 @@ export function ImpactPanel({
               {building
                 ? `${building.type} · ${building.floors}F · ${Number(building.footprint_m2).toLocaleString()} m²`
                 : trellisGlbUrl ? 'TRELLIS.2 generation complete' : ''}
-            <div style={{ fontSize: '11px', color: 'var(--text-2)', marginBottom: '2px' }}>
-              {building?.floors}-floor {building?.type || 'building'}
-            </div>
-            <div style={{ fontSize: '10px', color: 'var(--text-3)' }}>
-              {Number(building?.footprint_m2).toLocaleString()}m² · {building?.material || 'glass'} · {building?.status || 'Under Review'}
             </div>
           </div>
           {impact && (
@@ -96,7 +91,6 @@ export function ImpactPanel({
               <div style={{ fontSize: '9px', color: 'var(--text-3)', maxWidth: 70, textAlign: 'right', lineHeight: 1.4 }}>
                 {avgScore <= 30 ? 'Low Impact' : avgScore <= 60 ? 'Moderate' : avgScore <= 85 ? 'High Impact' : 'Critical'}
               </div>
-              <div style={{ fontSize: '9px', color: 'var(--text-3)', maxWidth: 70, textAlign: 'right', lineHeight: 1.4 }}>Higher = more city impact</div>
             </div>
           )}
         </div>
@@ -106,9 +100,6 @@ export function ImpactPanel({
             <span className="tag tag-dim">{building.lat?.toFixed(4)}, {building.lng?.toFixed(4)}</span>
             <span className="tag tag-dim">{building.material || 'glass'}</span>
             <span className="tag tag-cyan">{building.status || 'Under Review'}</span>
-            <span className="tag tag-dim">
-              {building.lat?.toFixed(4)}, {building.lng?.toFixed(4)}
-            </span>
           </div>
         )}
       </div>
@@ -170,15 +161,11 @@ export function ImpactPanel({
             {/* Impact scores */}
             <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '14px' }}>
-                <span className="label">Impact Analysis</span>
-                <button onClick={() => setExpanded(e => !e)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px' }}>
                 <div>
                   <span className="label">Impact Analysis</span>
                   <div style={{ fontSize: '10px', color: 'var(--text-3)', marginTop: 2 }}>Score 0–100 · higher means greater city impact</div>
                 </div>
-                <button onClick={() => setExpanded(e => !e)} style={{
-                  background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px',
-                }}>
+                <button onClick={() => setExpanded(e => !e)} style={{ background: 'none', border: 'none', color: 'var(--text-2)', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', fontSize: '11px' }}>
                   {expanded ? <ChevronUp size={12} /> : <ChevronDown size={12} />}
                   {expanded ? 'Collapse' : 'Expand'}
                 </button>
@@ -192,30 +179,13 @@ export function ImpactPanel({
               )}
             </div>
 
-            {/* Provenance */}
-            <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: '6px', flexWrap: 'wrap', marginBottom: 6 }}>
-                <span style={{ fontSize: '10px', color: 'var(--text-3)' }}>Powered by</span>
-                <span className="tag tag-green">XGBoost + ITE</span>
-                <span className="tag tag-cyan">NeMoTron DGX Spark</span>
-                <span className="tag tag-dim">Ontario EWRB</span>
-                <span className="tag tag-dim">Toronto Open Data</span>
-              </div>
-              {impact?.traffic?.transit_tier && impact.traffic.transit_tier !== 'none' && (
-                <div style={{
-                  display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--score-low)',
-                  background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)',
-                  borderRadius: 'var(--radius)', padding: '5px 10px', marginTop: 4,
-            {/* Notes — transit discount only */}
+            {/* Transit discount note */}
             {impact?.traffic?.transit_tier && impact.traffic.transit_tier !== 'none' && (
               <div style={{ padding: '10px 16px', borderBottom: '1px solid var(--border)', background: 'var(--surface)' }}>
                 <span className="label" style={{ display: 'block', marginBottom: 6 }}>Notes</span>
-                {/* Transit discount badge — shown when TTC proximity reduces traffic */}
                 <div style={{
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                  fontSize: '11px', color: 'var(--score-low)',
-                  background: 'rgba(74,222,128,0.08)',
-                  border: '1px solid rgba(74,222,128,0.2)',
+                  display: 'flex', alignItems: 'center', gap: '6px', fontSize: '11px', color: 'var(--score-low)',
+                  background: 'rgba(74,222,128,0.08)', border: '1px solid rgba(74,222,128,0.2)',
                   borderRadius: 'var(--radius)', padding: '5px 10px',
                 }}>
                   <span style={{ fontWeight: 600 }}>TTC proximity discount applied</span>
@@ -239,8 +209,6 @@ export function ImpactPanel({
         )}
       </div>
 
-      {showChat && impact && <ChatBox buildingId={building?.id} />}
-      {/* Chat box — always pinned to bottom */}
       {showChat && impact && (
         <div style={{ background: 'rgba(0,212,255,0.03)', borderTop: '1px solid rgba(0,212,255,0.15)' }}>
           <ChatBox buildingId={building?.id} />

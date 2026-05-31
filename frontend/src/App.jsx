@@ -16,24 +16,13 @@ const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 const DEFAULT_FORM = { name: '', description: '', floors: 24 }
 
 export default function App() {
-  const [mode,     setMode]     = useState('builder')
-  const [coord,    setCoord]    = useState(null)
-  const [existing, setExisting] = useState([])
-  const [selected, setSelected] = useState(null)
-  const [panelOpen, setPanelOpen] = useState(false)
+  const [mode,         setMode]         = useState('citizen')
+  const [coord,        setCoord]        = useState(null)
+  const [existing,     setExisting]     = useState([])
+  const [selected,     setSelected]     = useState(null)
+  const [panelOpen,    setPanelOpen]    = useState(false)
   const [renderPayload, setRenderPayload] = useState(null)
-  const [mode,          setMode]          = useState('citizen')    // default citizen; builder unlocks on auth
-  const [coord,         setCoord]         = useState(null)
-  const [formData,      setFormData]      = useState({ floors: 24, footprint_m2: 2000, type: 'residential (high-rise)' })
-  const [liveForm,      setLiveForm]      = useState(DEFAULT_FORM)
-  const [existing,      setExisting]      = useState([])
-  const [selected,      setSelected]      = useState(null)
-  const [panelOpen,     setPanelOpen]     = useState(false)
-  const [renderPayload, setRenderPayload] = useState(null)
-  const [mapPreview,    setMapPreview]    = useState({ image: null, loading: false })
   const [showAuthModal, setShowAuthModal] = useState(false)
-
-  const { isOrgUser } = useAuth()
 
   // ── Image + TRELLIS flow ──────────────────────────────────────────────────
   const [mapPreview,        setMapPreview]        = useState({ image: null, loading: false })
@@ -43,6 +32,7 @@ export default function App() {
   const [pendingFormData,   setPendingFormData]   = useState(null)
   const [imageLoading,      setImageLoading]      = useState(false)
 
+  const { isOrgUser } = useAuth()
   const { building, loading: buildingLoading, submit, reset } = useBuilding()
   const buildingId = building?.id || selected?.id
   const { impact, loading: impactLoading, error: impactError, loadingMessage } = useImpact(buildingId)
@@ -60,16 +50,14 @@ export default function App() {
   useEffect(() => {
     if (building || selected || trellisGlbUrl) setPanelOpen(true)
   }, [building, selected, trellisGlbUrl])
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (building || selected) setPanelOpen(true)
-  }, [building, selected])
 
-  // If user switches to builder mode without org auth, show login modal instead
-  const generateMapPreview = async (formData, coordVal) => {
-    if (!coordVal) return
-    if (previewAbortRef.current) previewAbortRef.current.abort()
-    const controller = new AbortController()
-    previewAbortRef.current = controller
+  // When org auth is acquired while modal was open, switch to builder
+  useEffect(() => {
+    if (isOrgUser && showAuthModal) {
+      setShowAuthModal(false)
+      setMode('builder')
+    }
+  }, [isOrgUser, showAuthModal])
 
   // ── Step 1: Generate image ────────────────────────────────────────────────
   const handleGenerateImage = useCallback(async (data) => {
@@ -114,7 +102,7 @@ export default function App() {
   const handleTrellisComplete = useCallback((glbUrl) => {
     setTrellisGlbUrl(glbUrl)
     setImageModal({ open: false, imageSrc: null, imageB64: null })
-    setMapPreview({ image: null, loading: false })  // remove billboard; 3D model takes over
+    setMapPreview({ image: null, loading: false })
   }, [])
 
   // ── Step 4: Analyze Impact (user-triggered from panel) ────────────────────
@@ -144,14 +132,6 @@ export default function App() {
     }
   }, [isOrgUser, reset, reset3D])
 
-  // When org auth is acquired while modal was open, switch to builder
-  useEffect(() => {
-    if (isOrgUser && showAuthModal) {
-      setShowAuthModal(false)
-      setMode('builder')
-    }
-  }, [isOrgUser, showAuthModal])
-
   const handleReset = () => {
     reset(); reset3D()
     setCoord(null); setSelected(null); setPanelOpen(false); setRenderPayload(null)
@@ -172,7 +152,6 @@ export default function App() {
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: 'var(--bg)', transition: 'background 0.2s' }}>
-      <Header buildingCount={existing.length} mode={mode} onModeChange={handleModeChange} />
       <Header
         buildingCount={existing.length}
         mode={mode}
@@ -193,7 +172,6 @@ export default function App() {
           trellisGlbUrl={isCitizen ? null : trellisGlbUrl}
         />
 
-        {/* Builder form — shown until panel opens */}
         {!isCitizen && !panelOpen && (
           <BuildingForm
             coord={coord}
@@ -204,7 +182,6 @@ export default function App() {
           />
         )}
 
-        {/* "New building" chip when panel is open */}
         {!isCitizen && panelOpen && !selected && (
           <div style={{
             position: 'absolute', top: 60, left: 16,
@@ -221,7 +198,6 @@ export default function App() {
           </div>
         )}
 
-        {/* Impact panel */}
         {!isCitizen && (
           <div style={{
             width: panelOpen ? 'var(--panel-w)' : '0',
@@ -247,7 +223,6 @@ export default function App() {
         )}
       </div>
 
-      {/* Image confirm / TRELLIS modal */}
       {imageModal.open && (
         <ImageConfirmModal
           imageSrc={imageModal.imageSrc}
@@ -256,7 +231,7 @@ export default function App() {
           onDeny={handleImageDeny}
         />
       )}
-      {/* Auth modal */}
+
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </div>
   )
