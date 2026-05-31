@@ -1,120 +1,73 @@
 """
-Handles SCP upload + SSH execution of TRELLIS.2 on the GX10,
-then SCP downloads the resulting sample.glb.
+Runs TRELLIS.2 locally via subprocess — backend and TRELLIS share the same machine.
 """
-import base64
+import logging
 import os
+import shutil
+import subprocess
+import sys
 import tempfile
-import threading
+import base64
 from pathlib import Path
 
-import paramiko
 from dotenv import load_dotenv
 
 load_dotenv()
 
-GX10_HOST = os.getenv("GX10_HOST", "100.93.45.108")
-GX10_USER = os.getenv("GX10_USER", "asus")
-GX10_PORT = int(os.getenv("GX10_PORT", "22"))
-REMOTE_ASSETS_DIR = "/home/asus/TRELLIS.2/assets/example_image"
-REMOTE_TRELLIS_DIR = "/home/asus/TRELLIS.2"
-REMOTE_OUTPUT_GLB  = "/home/asus/TRELLIS.2/sample.glb"
-REMOTE_EXAMPLE_PY  = "/home/asus/TRELLIS.2/example.py"
+_h = logging.StreamHandler(sys.stderr)
+_h.setFormatter(logging.Formatter("%(asctime)s [ssh_runner] %(message)s"))
+log = logging.getLogger("ssh_runner")
+log.addHandler(_h)
+log.setLevel(logging.DEBUG)
+
+TRELLIS_DIR   = Path(os.getenv("TRELLIS_DIR",   "/home/asus/TRELLIS.2"))
+CONDA_SH      = Path(os.getenv("CONDA_SH",      "/home/benjamin/miniconda3/etc/profile.d/conda.sh"))
+CONDA_ENV     = os.getenv("CONDA_ENV",           "trellis2")
+ASSETS_DIR    = TRELLIS_DIR / "assets" / "example_image"
+EXAMPLE_PY    = TRELLIS_DIR / "example.py"
+OUTPUT_GLB    = TRELLIS_DIR / "sample.glb"
+TIMEOUT_SECS  = int(os.getenv("TRELLIS_TIMEOUT", str(30 * 60)))  # 30 min
 
 GLB_STORE = Path(__file__).parent / "glb_store"
 GLB_STORE.mkdir(exist_ok=True)
 
 
-def _make_client() -> paramiko.SSHClient:
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
-    client.connect(
-        GX10_HOST,
-        port=GX10_PORT,
-        username=GX10_USER,
-        timeout=30,
-    )
-    client.get_transport().set_keepalive(30)
-    return client
-
-
 def run_trellis(image_b64: str, job_id: str) -> str:
-    """
-    1. Decode base64 image → temp PNG
-    2. SCP to GX10 assets dir
-    3. SSH: conda run -n trellis2 python example.py <remote_path>
-    4. SCP sample.glb back
-    5. Return local GLB path
-    """
-    hf_token = os.getenv("HF_TOKEN", "")
+    ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    # Decode image to a local temp file
+    # Write input image
     raw = base64.b64decode(image_b64)
-    with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
-        f.write(raw)
-        local_img = f.name
+    input_img = ASSETS_DIR / f"input_{job_id}.png"
+    input_img.write_bytes(raw)
+    log.info("Wrote input image → %s", input_img)
 
-    remote_img = f"{REMOTE_ASSETS_DIR}/input_{job_id}.png"
-    local_glb  = str(GLB_STORE / f"{job_id}.glb")
+    cmd = (
+        f"source {CONDA_SH} && "
+        f"cd {TRELLIS_DIR} && "
+        f"HF_HUB_DISABLE_XET=1 "
+        f"conda run -n {CONDA_ENV} --no-capture-output "
+        f"python {EXAMPLE_PY} {input_img}"
+    )
+    log.info("Running TRELLIS (timeout=%ds): %s", TIMEOUT_SECS, cmd)
 
-    client = _make_client()
     try:
-        sftp = client.open_sftp()
-
-        # Ensure remote assets dir exists
-        try:
-            sftp.stat(REMOTE_ASSETS_DIR)
-        except FileNotFoundError:
-            sftp.mkdir(REMOTE_ASSETS_DIR)
-
-        # Upload image
-        sftp.put(local_img, remote_img)
-        sftp.close()
-
-        # Run TRELLIS
-        cmd = (
-            f"cd {REMOTE_TRELLIS_DIR} && "
-            f"HF_TOKEN={hf_token} "
-            f"HF_HUB_DISABLE_XET=1 "
-            f"conda run -n trellis2 --no-capture-output "
-            f"python {REMOTE_EXAMPLE_PY} {remote_img}"
+        result = subprocess.run(
+            ["bash", "-c", cmd],
+            timeout=TIMEOUT_SECS,
+            check=False,
         )
-        _, stdout, stderr = client.exec_command(cmd, timeout=None)
-
-        # Drain stdout/stderr in threads — TRELLIS produces heavy output and
-        # the SSH pipe buffer (~32 KB) will deadlock if nobody reads it.
-        stderr_buf = []
-        def _drain_out():
-            try:
-                while stdout.read(4096):
-                    pass
-            except Exception:
-                pass
-        def _drain_err():
-            try:
-                while chunk := stderr.read(4096):
-                    stderr_buf.append(chunk)
-            except Exception:
-                pass
-
-        t_out = threading.Thread(target=_drain_out, daemon=True)
-        t_err = threading.Thread(target=_drain_err, daemon=True)
-        t_out.start(); t_err.start()
-
-        exit_status = stdout.channel.recv_exit_status()
-        t_out.join(timeout=5); t_err.join(timeout=5)
-
-        if exit_status != 0:
-            err = b"".join(stderr_buf).decode("utf-8", errors="replace")
-            raise RuntimeError(f"TRELLIS exited {exit_status}: {err[:600]}")
-
-        # Download GLB
-        sftp = client.open_sftp()
-        sftp.get(REMOTE_OUTPUT_GLB, local_glb)
-        sftp.close()
-
+    except subprocess.TimeoutExpired:
+        raise RuntimeError(f"TRELLIS timed out after {TIMEOUT_SECS}s")
     finally:
-        client.close()
-        Path(local_img).unlink(missing_ok=True)
+        input_img.unlink(missing_ok=True)
 
-    return local_glb
+    if result.returncode != 0:
+        raise RuntimeError(f"TRELLIS exited {result.returncode}")
+
+    if not OUTPUT_GLB.exists():
+        raise RuntimeError(f"sample.glb not found at {OUTPUT_GLB}")
+
+    dest = GLB_STORE / f"{job_id}.glb"
+    shutil.move(str(OUTPUT_GLB), str(dest))
+    log.info("GLB saved → %s", dest)
+    return str(dest)
