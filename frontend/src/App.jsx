@@ -4,6 +4,7 @@ import { Map } from './components/Map'
 import { BuildingForm } from './components/BuildingForm'
 import { ImpactPanel } from './components/ImpactPanel'
 import { CitizenPanel } from './components/CitizenPanel'
+import { ImageConfirmModal } from './components/ImageConfirmModal'
 import AuthModal from './components/AuthModal'
 import { ChatBox } from './components/ChatBox'
 import { useBuilding } from './hooks/useBuilding'
@@ -17,16 +18,20 @@ const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 const DEFAULT_FORM = { name: '', description: '', floors: 24 }
 
 export default function App() {
-  const [mode,          setMode]          = useState('builder')    // builder; gates to login if not org user
-  const [coord,         setCoord]         = useState(null)
-  const [formData,      setFormData]      = useState({ floors: 24, footprint_m2: 2000, type: 'residential (high-rise)' })
-  const [liveForm,      setLiveForm]      = useState(DEFAULT_FORM)
-  const [existing,      setExisting]      = useState([])
-  const [selected,      setSelected]      = useState(null)
-  const [panelOpen,     setPanelOpen]     = useState(false)
-  const [renderPayload, setRenderPayload] = useState(null)
-  const [mapPreview,    setMapPreview]    = useState({ image: null, loading: false })
-  const [showAuthModal, setShowAuthModal] = useState(false)
+  const [mode,             setMode]             = useState('builder')
+  const [coord,            setCoord]            = useState(null)
+  const [formData,         setFormData]         = useState({ floors: 24, footprint_m2: 2000, type: 'residential (high-rise)' })
+  const [liveForm,         setLiveForm]         = useState(DEFAULT_FORM)
+  const [existing,         setExisting]         = useState([])
+  const [selected,         setSelected]         = useState(null)
+  const [panelOpen,        setPanelOpen]        = useState(false)
+  const [renderPayload,    setRenderPayload]    = useState(null)
+  const [mapPreview,       setMapPreview]       = useState({ image: null, loading: false })
+  const [showAuthModal,    setShowAuthModal]    = useState(false)
+  const [imageModal,       setImageModal]       = useState({ open: false, imageSrc: null, imageB64: null })
+  const [confirmedImageSrc, setConfirmedImageSrc] = useState(null)
+  const [trellisGlbUrl,    setTrellisGlbUrl]   = useState(null)
+  const [pendingFormData,  setPendingFormData]  = useState(null)
 
   const { isOrgUser } = useAuth()
 
@@ -38,7 +43,6 @@ export default function App() {
   const { impact, loading: impactLoading, error: impactError, loadingMessage } = useImpact(buildingId)
   const { emit: emit3D, reset: reset3D } = useBuilding3D(setRenderPayload)
 
-  // Apply mode to <html> so CSS variables switch
   useEffect(() => {
     document.documentElement.setAttribute('data-mode', mode)
   }, [mode])
@@ -48,11 +52,9 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    if (building || selected) setPanelOpen(true)
-  }, [building, selected])
+    if (building || selected || trellisGlbUrl) setPanelOpen(true)
+  }, [building, selected, trellisGlbUrl])
 
-  // If user switches to builder mode without org auth, show login modal instead
   const generateMapPreview = async (formData, coordVal) => {
     if (!coordVal) return
     if (previewAbortRef.current) previewAbortRef.current.abort()
@@ -77,8 +79,6 @@ export default function App() {
     }
   }
 
-  // Trigger map preview whenever building type, material, or coord changes
-  // (popup already guards on coord being truthy, so no state reset needed here)
   useEffect(() => {
     if (!coord) return
     clearTimeout(previewTimerRef.current)
@@ -100,12 +100,12 @@ export default function App() {
       reset(); reset3D()
       setCoord(null); setPanelOpen(false); setRenderPayload(null)
       setMapPreview({ image: null, loading: false })
+      setTrellisGlbUrl(null); setConfirmedImageSrc(null); setPendingFormData(null)
       clearTimeout(previewTimerRef.current)
       if (previewAbortRef.current) previewAbortRef.current.abort()
     }
   }, [isOrgUser, reset, reset3D])
 
-  // When org auth is acquired while modal was open, switch to builder
   useEffect(() => {
     if (isOrgUser && showAuthModal) {
       setShowAuthModal(false)
@@ -113,12 +113,57 @@ export default function App() {
     }
   }, [isOrgUser, showAuthModal])
 
+  // Step 1: "Generate Image" — open confirm modal (reuse auto-preview or generate fresh)
   const handleSubmit = async (data) => {
+    setPendingFormData(data)
     setFormData({ floors: data.floors, footprint_m2: 2000, type: 'mixed-use' })
     setSelected(null)
-    const result = await submit(data)
+
+    if (mapPreview.image) {
+      setImageModal({ open: true, imageSrc: mapPreview.image, imageB64: mapPreview.image })
+      return
+    }
+
+    // No preview ready yet — generate now
+    setMapPreview({ image: null, loading: true })
+    try {
+      const prompt = data.description?.trim()
+        || `A modern ${data.floors || 24}-floor urban building in Toronto`
+      const res = await fetch(`${API_BASE}/generate/building-image`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ prompt }),
+      })
+      if (!res.ok) throw new Error(`${res.status}`)
+      const json = await res.json()
+      const src = json.image_b64 ? `data:image/png;base64,${json.image_b64}` : null
+      setMapPreview({ image: src, loading: false })
+      if (src) setImageModal({ open: true, imageSrc: src, imageB64: src })
+    } catch {
+      setMapPreview({ image: null, loading: false })
+    }
+  }
+
+  // Step 2a: user rejects image — close modal, let them try again
+  const handleImageDeny = () => {
+    setImageModal({ open: false, imageSrc: null, imageB64: null })
+    setMapPreview({ image: null, loading: false })
+  }
+
+  // Step 2b: TRELLIS done — GLB URL arrives, panel opens
+  const handleTrellisComplete = (glbUrl) => {
+    setTrellisGlbUrl(glbUrl)
+    setConfirmedImageSrc(imageModal.imageSrc)
+    setImageModal({ open: false, imageSrc: null, imageB64: null })
+    setMapPreview({ image: null, loading: false }) // clear billboard so 3D takes over
+  }
+
+  // Step 3: "Analyze Impact" — run NeMoTron with the stored form data
+  const handleAnalyzeImpact = async () => {
+    if (!pendingFormData) return
+    const result = await submit(pendingFormData)
     if (result) {
-      emit3D(result.id, data)
+      emit3D(result.id, pendingFormData)
       getBuildings().then(setExisting).catch(() => {})
     }
   }
@@ -127,6 +172,8 @@ export default function App() {
     reset(); reset3D()
     setCoord(null); setSelected(null); setPanelOpen(false); setRenderPayload(null)
     setMapPreview({ image: null, loading: false })
+    setTrellisGlbUrl(null); setConfirmedImageSrc(null); setPendingFormData(null)
+    setImageModal({ open: false, imageSrc: null, imageB64: null })
     setLiveForm(DEFAULT_FORM)
     clearTimeout(previewTimerRef.current)
     if (previewAbortRef.current) previewAbortRef.current.abort()
@@ -179,6 +226,7 @@ export default function App() {
           readOnly={isCitizen}
           mode={mode}
           mapPreview={isCitizen ? null : mapPreview}
+          trellisGlbUrl={trellisGlbUrl}
           onBack={!isCitizen && panelOpen ? handleReset : null}
         />
 
@@ -188,7 +236,7 @@ export default function App() {
             coord={coord}
             onSubmit={handleSubmit}
             onReset={coord || building ? handleReset : null}
-            loading={buildingLoading}
+            loading={buildingLoading || mapPreview.loading}
             onFormChange={handleFormChange}
           />
         )}
@@ -201,7 +249,7 @@ export default function App() {
             display: 'flex', alignItems: 'center', gap: '10px',
           }}>
             <span style={{ fontSize: '12px', color: 'var(--text-2)' }}>
-              {building?.name || `Building #${building?.id}`}
+              {building?.name || (trellisGlbUrl ? '3D model ready' : `Building #${building?.id}`)}
             </span>
             <button className="btn btn-ghost" onClick={handleReset}
               style={{ padding: '4px 10px', fontSize: '11px' }}>
@@ -224,6 +272,9 @@ export default function App() {
               loadingMessage={loadingMessage}
               error={impactError}
               renderPayload={renderPayload}
+              confirmedImageSrc={confirmedImageSrc}
+              trellisGlbUrl={trellisGlbUrl}
+              onAnalyzeImpact={handleAnalyzeImpact}
             />
           </div>
         )}
@@ -250,6 +301,16 @@ export default function App() {
           DGX Spark · NeMoTron
         </span>
       </div>
+
+      {/* Image confirm → TRELLIS modal */}
+      {imageModal.open && (
+        <ImageConfirmModal
+          imageSrc={imageModal.imageSrc}
+          imageB64={imageModal.imageB64}
+          onConfirm={handleTrellisComplete}
+          onDeny={handleImageDeny}
+        />
+      )}
 
       {/* Auth modal */}
       {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
