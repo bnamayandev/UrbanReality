@@ -7,7 +7,7 @@ import * as turf from '@turf/turf'
 import 'mapbox-gl/dist/mapbox-gl.css'
 
 const MAPBOX_TOKEN = import.meta.env.VITE_MAPBOX_TOKEN
-const TORONTO = { longitude: -79.3832, latitude: 43.6532, zoom: 13.5, pitch: 45, bearing: -10 }
+const TORONTO = { longitude: -79.3832, latitude: 43.6532, zoom: 13.5, pitch: 55, bearing: -10 }
 const BILLBOARD_LAYER_ID = 'ai-image-billboard'
 const GLB_LAYER_ID = 'glb-building-model'
 const EMPTY_GEO = { type: 'FeatureCollection', features: [] }
@@ -347,7 +347,7 @@ function ExistingMarkers({ buildings, onSelect, selected }) {
           {b.name || `Building #${b.id}`}
         </div>
         <div style={{ fontSize: '11px', color: 'var(--text-2)', marginBottom: 4 }}>
-          {b.type} · {b.floors}F
+          {b.floors} floors · {b.type ? b.type.charAt(0).toUpperCase() + b.type.slice(1) : 'Building'}
         </div>
         <div style={{
           display: 'inline-block', fontSize: '10px', fontWeight: 600,
@@ -356,7 +356,7 @@ function ExistingMarkers({ buildings, onSelect, selected }) {
           color: selected?.id === b.id ? '#000' : 'var(--text-2)',
           border: '1px solid var(--border)',
         }}>
-          {b.status || 'Under Review'}
+          {b.status ? b.status.charAt(0).toUpperCase() + b.status.slice(1) : 'Under Review'}
         </div>
       </div>
     </Popup>
@@ -365,9 +365,13 @@ function ExistingMarkers({ buildings, onSelect, selected }) {
 
 // ── Main Map component ─────────────────────────────────────────────────────────
 export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting, readOnly = false, mode = 'builder', mapPreview = null, trellisGlbUrl = null }) {
+export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting, readOnly = false, mode = 'builder', mapPreview = null, onBack = null }) {
   const mapRef = useRef(null)
   const [selectedExisting, setSelectedExisting] = useState(null)
   const isDark = mode === 'builder'
+
+  // 2D/3D toggle state
+  const [is3D, setIs3D] = useState(true)
 
   // Draw state
   const [isDrawMode, setIsDrawMode] = useState(false)
@@ -381,6 +385,14 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
   const [isBlocked, setIsBlocked] = useState(false)
   const existingBuildingsRef = useRef(existingBuildings)
   useEffect(() => { existingBuildingsRef.current = existingBuildings }, [existingBuildings])
+
+  // Enable trackpad two-finger rotation on mount
+  useEffect(() => {
+    const map = mapRef.current?.getMap?.()
+    if (map) {
+      map.touchZoomRotate.enableRotation()
+    }
+  }, [])
 
   // GLB building at drawn area
   useGLBLayer(mapRef, rectCoord, rectDims, rotationRef, setBuildingFootprint, trellisGlbUrl)
@@ -508,8 +520,17 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
         style={{ width: '100%', height: '100%' }}
         mapStyle={MAP_STYLES[mode]}
         cursor={isDrawMode ? 'crosshair' : 'grab'}
+        touchZoomRotate={true}
       >
         <NavigationControl position="top-right" visualizePitch />
+        <style>{`
+  .mapboxgl-ctrl-group button { opacity: 1 !important; }
+  .mapboxgl-ctrl-group { background: rgba(15,15,24,0.9) !important; border: 1px solid rgba(255,255,255,0.12) !important; }
+  .mapboxgl-ctrl-group button:hover { background: rgba(255,255,255,0.08) !important; }
+  .mapboxgl-ctrl-icon { filter: invert(1) !important; }
+  [data-mode="citizen"] .mapboxgl-ctrl-group { background: rgba(245,246,250,0.9) !important; border: 1px solid rgba(0,0,0,0.12) !important; }
+  [data-mode="citizen"] .mapboxgl-ctrl-icon { filter: none !important; }
+`}</style>
         <Layer {...(isDark ? BUILDINGS_DARK : BUILDINGS_LIGHT)} />
 
         {/* Buildable area / building footprint outline */}
@@ -532,6 +553,45 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
           selected={selectedExisting}
         />
       </ReactMapGL>
+
+      {/* Back button */}
+      {onBack && (
+        <button onClick={onBack} style={{
+          position: 'absolute', top: 10, left: 10, zIndex: 5,
+          background: isDark ? 'rgba(15,15,24,0.85)' : 'rgba(245,246,250,0.90)',
+          border: `1px solid ${isDark ? 'rgba(255,255,255,0.12)' : 'rgba(0,0,0,0.12)'}`,
+          borderRadius: 8, padding: '7px 14px',
+          fontSize: 12, fontWeight: 600, color: 'var(--text)',
+          cursor: 'pointer', backdropFilter: 'blur(8px)',
+          display: 'flex', alignItems: 'center', gap: 6,
+        }}>
+          ← New Building
+        </button>
+      )}
+
+      {/* 2D/3D toggle button */}
+      <button
+        onClick={() => {
+          if (is3D) {
+            mapRef.current?.easeTo({ pitch: 0, duration: 600 })
+            setIs3D(false)
+          } else {
+            mapRef.current?.easeTo({ pitch: 55, bearing: -10, duration: 600 })
+            setIs3D(true)
+          }
+        }}
+        style={{
+          position: 'absolute', bottom: 120, right: 10, zIndex: 5,
+          background: 'rgba(15,15,24,0.85)',
+          border: '1px solid rgba(255,255,255,0.15)',
+          color: 'var(--text)',
+          fontSize: 11, fontWeight: 600,
+          padding: '5px 10px', borderRadius: 6,
+          cursor: 'pointer', backdropFilter: 'blur(8px)',
+        }}
+      >
+        {is3D ? '2D' : '3D'}
+      </button>
 
       {/* Draw / Redraw / Cancel button */}
       {!readOnly && (
@@ -613,7 +673,7 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
               fontSize: 11, color: accent,
               backdropFilter: 'blur(10px)', whiteSpace: 'nowrap',
             }}>
-              Building rendered — fill the form and click Analyze Impact
+              Building placed — describe it and click Analyze Impact
             </div>
           )}
         </div>
@@ -641,8 +701,17 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
 
       {/* Hints */}
       {!readOnly && !rectCoord && !isDrawMode && (
-        <div style={{ ...pillBase, background: hintBg, border: '1px solid var(--border)', color: hintColor, pointerEvents: 'none' }}>
-          Draw a buildable area to place a building
+        <div style={{
+          position: 'absolute', bottom: 24, left: '50%', transform: 'translateX(-50%)',
+          background: isDark ? 'rgba(0,212,255,0.12)' : 'rgba(0,119,204,0.12)',
+          border: `1px solid ${isDark ? 'rgba(0,212,255,0.4)' : 'rgba(0,119,204,0.4)'}`,
+          borderRadius: '20px', padding: '9px 22px',
+          fontSize: '12px', fontWeight: 600,
+          color: isDark ? 'var(--cyan)' : '#0077cc',
+          pointerEvents: 'none', backdropFilter: 'blur(10px)', whiteSpace: 'nowrap',
+          display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <span style={{ fontSize: 14 }}>✦</span> Draw buildable area to place a building
         </div>
       )}
       {!readOnly && isDrawMode && (

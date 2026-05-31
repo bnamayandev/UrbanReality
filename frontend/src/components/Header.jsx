@@ -1,11 +1,13 @@
 import { useEffect, useState } from 'react'
-import { Activity, Cpu, Database, Wifi, WifiOff } from 'lucide-react'
+import { Activity, Cpu, Database, Wifi, WifiOff, LogIn, LogOut, Building2, User } from 'lucide-react'
 import { getHealth } from '../api'
 import { ModeSwitcher } from './ModeSwitcher'
+import { useAuth } from '../context/AuthContext'
 
-export function Header({ buildingCount = 0, mode, onModeChange }) {
-  const [health, setHealth]   = useState(null)
-  const [online, setOnline]   = useState(null)
+export function Header({ buildingCount = 0, mode, onModeChange, onLoginClick }) {
+  const [health, setHealth] = useState(null)
+  const [online, setOnline] = useState(null)
+  const { profile, isOrgUser, signOut } = useAuth()
 
   useEffect(() => {
     const check = async () => {
@@ -89,14 +91,63 @@ export function Header({ buildingCount = 0, mode, onModeChange }) {
         )}
       </div>
 
-      {/* Right: mode switcher + building count + hackathon badge */}
+      {/* Right: mode switcher + building count + auth + hackathon badge */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginLeft: 'auto' }}>
         <ModeSwitcher mode={mode} onChange={onModeChange} />
+
         {buildingCount > 0 && (
           <span style={{ fontSize: '11px', color: 'var(--text-2)' }}>
             <span style={{ fontFamily: 'var(--mono)', color: 'var(--cyan)', fontWeight: 600 }}>{buildingCount}</span> buildings
           </span>
         )}
+
+        {/* Auth area */}
+        {profile ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            {isOrgUser ? (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <Building2 size={11} color="var(--cyan)" />
+                <span style={{ fontSize: '11px', color: 'var(--cyan)', fontWeight: 600 }}>
+                  {profile.org_name || 'Organization'}
+                </span>
+              </div>
+            ) : (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '5px' }}>
+                <User size={11} color="var(--text-2)" />
+                <span style={{ fontSize: '11px', color: 'var(--text-2)' }}>
+                  {profile.email.split('@')[0]}
+                </span>
+              </div>
+            )}
+            <button
+              onClick={signOut}
+              title="Log out"
+              style={{
+                background: 'none', border: '1px solid var(--border)',
+                borderRadius: 4, padding: '3px 7px',
+                color: 'var(--text-2)', cursor: 'pointer',
+                display: 'flex', alignItems: 'center', gap: 4, fontSize: 11,
+              }}
+            >
+              <LogOut size={10} />
+              Log out
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onLoginClick}
+            style={{
+              background: 'var(--cyan-dim)', border: '1px solid var(--cyan)',
+              borderRadius: 4, padding: '4px 10px',
+              color: 'var(--cyan)', cursor: 'pointer',
+              display: 'flex', alignItems: 'center', gap: 5, fontSize: 11, fontWeight: 600,
+            }}
+          >
+            <LogIn size={11} />
+            Log in
+          </button>
+        )}
+
         <div style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
           <div style={{ width: 8, height: 8, borderRadius: '1px', background: 'var(--nv-green)' }} />
           <span style={{ fontSize: '10px', color: 'var(--text-3)', fontWeight: 600, letterSpacing: '0.05em' }}>

@@ -5,9 +5,11 @@ import { BuildingForm } from './components/BuildingForm'
 import { ImpactPanel } from './components/ImpactPanel'
 import { CitizenPanel } from './components/CitizenPanel'
 import { ImageConfirmModal } from './components/ImageConfirmModal'
+import AuthModal from './components/AuthModal'
 import { useBuilding } from './hooks/useBuilding'
 import { useImpact } from './hooks/useImpact'
 import { useBuilding3D } from './hooks/useBuilding3D'
+import { useAuth } from './context/AuthContext'
 import { getBuildings } from './api'
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
@@ -20,6 +22,18 @@ export default function App() {
   const [selected, setSelected] = useState(null)
   const [panelOpen, setPanelOpen] = useState(false)
   const [renderPayload, setRenderPayload] = useState(null)
+  const [mode,          setMode]          = useState('citizen')    // default citizen; builder unlocks on auth
+  const [coord,         setCoord]         = useState(null)
+  const [formData,      setFormData]      = useState({ floors: 24, footprint_m2: 2000, type: 'residential (high-rise)' })
+  const [liveForm,      setLiveForm]      = useState(DEFAULT_FORM)
+  const [existing,      setExisting]      = useState([])
+  const [selected,      setSelected]      = useState(null)
+  const [panelOpen,     setPanelOpen]     = useState(false)
+  const [renderPayload, setRenderPayload] = useState(null)
+  const [mapPreview,    setMapPreview]    = useState({ image: null, loading: false })
+  const [showAuthModal, setShowAuthModal] = useState(false)
+
+  const { isOrgUser } = useAuth()
 
   // ── Image + TRELLIS flow ──────────────────────────────────────────────────
   const [mapPreview,        setMapPreview]        = useState({ image: null, loading: false })
@@ -46,6 +60,16 @@ export default function App() {
   useEffect(() => {
     if (building || selected || trellisGlbUrl) setPanelOpen(true)
   }, [building, selected, trellisGlbUrl])
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    if (building || selected) setPanelOpen(true)
+  }, [building, selected])
+
+  // If user switches to builder mode without org auth, show login modal instead
+  const generateMapPreview = async (formData, coordVal) => {
+    if (!coordVal) return
+    if (previewAbortRef.current) previewAbortRef.current.abort()
+    const controller = new AbortController()
+    previewAbortRef.current = controller
 
   // ── Step 1: Generate image ────────────────────────────────────────────────
   const handleGenerateImage = useCallback(async (data) => {
@@ -106,6 +130,10 @@ export default function App() {
 
   // ── Mode + reset ──────────────────────────────────────────────────────────
   const handleModeChange = useCallback((newMode) => {
+    if (newMode === 'builder' && !isOrgUser) {
+      setShowAuthModal(true)
+      return
+    }
     setMode(newMode)
     if (newMode === 'citizen') {
       reset(); reset3D()
@@ -114,7 +142,15 @@ export default function App() {
       setImageModal({ open: false, imageSrc: null, imageB64: null })
       setTrellisGlbUrl(null); setConfirmedImageSrc(null); setPendingFormData(null)
     }
-  }, [reset, reset3D])
+  }, [isOrgUser, reset, reset3D])
+
+  // When org auth is acquired while modal was open, switch to builder
+  useEffect(() => {
+    if (isOrgUser && showAuthModal) {
+      setShowAuthModal(false)
+      setMode('builder')
+    }
+  }, [isOrgUser, showAuthModal])
 
   const handleReset = () => {
     reset(); reset3D()
@@ -137,6 +173,12 @@ export default function App() {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', overflow: 'hidden', background: 'var(--bg)', transition: 'background 0.2s' }}>
       <Header buildingCount={existing.length} mode={mode} onModeChange={handleModeChange} />
+      <Header
+        buildingCount={existing.length}
+        mode={mode}
+        onModeChange={handleModeChange}
+        onLoginClick={() => setShowAuthModal(true)}
+      />
 
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden', position: 'relative' }}>
         <Map
@@ -214,6 +256,8 @@ export default function App() {
           onDeny={handleImageDeny}
         />
       )}
+      {/* Auth modal */}
+      {showAuthModal && <AuthModal onClose={() => setShowAuthModal(false)} />}
     </div>
   )
 }

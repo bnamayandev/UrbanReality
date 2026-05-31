@@ -10,6 +10,7 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@supabase/supabase-js": "^2.106.2",
     "@turf/turf": "^7.3.5",
     "lucide-react": "^1.17.0",
     "mapbox-gl": "^3.24.0",

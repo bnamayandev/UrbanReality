@@ -5,12 +5,48 @@ const WS_BASE  = API_BASE.startsWith('/')
   ? `ws://${window.location.host}/api`
   : API_BASE.replace(/^http/, 'ws')
 
+// Auth token injected by AuthContext after login
+let _authToken = null
+export function setAuthToken(token) { _authToken = token }
+
+function authHeaders() {
+  return _authToken ? { Authorization: `Bearer ${_authToken}` } : {}
+}
+
+// ── Auth / Accounts ────────────────────────────────────────────────────────
+
+export async function registerUser(data) {
+  const res = await fetch(`${API_BASE}/auth/register`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(data),
+  })
+  if (!res.ok) throw new Error(`Registration failed: ${res.status}`)
+  return res.json()
+}
+
+export async function getMe() {
+  const res = await fetch(`${API_BASE}/auth/me`, {
+    headers: { ...authHeaders() },
+  })
+  if (!res.ok) throw new Error(`Failed to fetch profile: ${res.status}`)
+  return res.json()
+}
+
+export async function getOrgBuildings() {
+  const res = await fetch(`${API_BASE}/organizations/me/buildings`, {
+    headers: { ...authHeaders() },
+  })
+  if (!res.ok) throw new Error(`Failed to fetch org buildings: ${res.status}`)
+  return res.json()
+}
+
 // ── Buildings ──────────────────────────────────────────────────────────────
 
 export async function createBuilding(data) {
   const res = await fetch(`${API_BASE}/building`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...authHeaders() },
     body: JSON.stringify(data),
   })
   if (!res.ok) throw new Error(`Failed to create building: ${res.status}`)
@@ -23,6 +59,13 @@ export async function getBuildings() {
   return res.json()
 }
 
+export async function getNearbyBuildings(lat, lng, radiusKm = 2.0) {
+  const url = `${API_BASE}/buildings/nearby?lat=${lat}&lng=${lng}&radius_km=${radiusKm}`
+  const res = await fetch(url)
+  if (!res.ok) throw new Error(`Failed to fetch nearby buildings: ${res.status}`)
+  return res.json()
+}
+
 export async function getImpact(buildingId) {
   const res = await fetch(`${API_BASE}/building/${buildingId}/impact`)
   if (!res.ok) throw new Error(`Failed to fetch impact: ${res.status}`)
@@ -30,8 +73,6 @@ export async function getImpact(buildingId) {
 }
 
 // ── Image generation ────────────────────────────────────────────────────────
-// Placeholder: teammates will connect ML image generation here
-// Pass building params → returns base64 PNG
 
 export async function generateBuildingImage({ buildingType, style, floors, size }) {
   const res = await fetch(`${API_BASE}/generate/building-image`, {
@@ -61,8 +102,6 @@ export async function getHealth() {
 }
 
 // ── WebSocket chat factory ──────────────────────────────────────────────────
-// Returns a WebSocket connected to the chat endpoint.
-// Caller is responsible for ws.onmessage, ws.onclose, ws.onerror.
 
 export function createChatSocket(sessionId) {
   return new WebSocket(`${WS_BASE}/chat/${sessionId}`)
@@ -87,8 +126,6 @@ export const MATERIALS = [
   { value: 'brick',        label: 'Brick' },
 ]
 
-// Maps building type → image generation params
-// TODO: teammates can refine these mappings when connecting ML
 export function buildingTypeToImageParams(type, floors) {
   const floorCount = Math.min(floors, 100)
   if (type.includes('high-rise') || type.includes('commercial')) {

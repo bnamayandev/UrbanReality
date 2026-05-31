@@ -9,6 +9,7 @@ pydantic-settings
 python-dotenv
 httpx
 websockets
+Pillow
 geopandas
 pyarrow
 rasterio
@@ -18,7 +19,7 @@ langchain-openai
 langchain-google-genai
 google-genai
 openai
-pillow
 scikit-learn
 xgboost
 paramiko
+python-jose[cryptography]

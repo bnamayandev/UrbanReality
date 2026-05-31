@@ -1,7 +1,8 @@
 import { useState } from 'react'
-import { MapPin, TrendingUp, Home, Leaf, Car, Building2, ChevronDown, ChevronUp } from 'lucide-react'
+import { MapPin, TrendingUp, Home, Leaf, Car, Building2, ChevronDown, ChevronUp, Navigation, Loader2 } from 'lucide-react'
 import { ScoreBar } from './ScoreBar'
 import { ChatBox } from './ChatBox'
+import { getNearbyBuildings } from '../api'
 
 const DIMENSIONS = [
   { key: 'environmental', label: 'Environmental',  Icon: Leaf },
@@ -21,8 +22,36 @@ const SUGGESTED_QUESTIONS = [
 ]
 
 export function CitizenPanel({ building, impact, loading, existingBuildings = [] }) {
-  const [showScores, setShowScores] = useState(true)
-  const [showChat,   setShowChat]   = useState(false)
+  const [showScores,    setShowScores]    = useState(true)
+  const [showChat,      setShowChat]      = useState(false)
+  const [nearbyLoading, setNearbyLoading] = useState(false)
+  const [nearbyError,   setNearbyError]   = useState('')
+  const [nearbyList,    setNearbyList]    = useState(null)  // null = not fetched yet
+
+  async function handleNearMe() {
+    setNearbyError('')
+    if (!navigator.geolocation) {
+      setNearbyError('Geolocation is not supported by your browser.')
+      return
+    }
+    setNearbyLoading(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        try {
+          const results = await getNearbyBuildings(pos.coords.latitude, pos.coords.longitude, 2)
+          setNearbyList(results)
+        } catch (err) {
+          setNearbyError('Could not load nearby buildings.')
+        } finally {
+          setNearbyLoading(false)
+        }
+      },
+      () => {
+        setNearbyError('Location permission denied.')
+        setNearbyLoading(false)
+      }
+    )
+  }
 
   return (
     <div style={{
@@ -45,13 +74,58 @@ export function CitizenPanel({ building, impact, loading, existingBuildings = []
         <div style={{ fontWeight: 700, fontSize: '15px', marginBottom: '4px', color: 'var(--text)' }}>
           Explore Toronto Developments
         </div>
-        <div style={{ fontSize: '12px', color: 'var(--text-2)' }}>
+        <div style={{ fontSize: '12px', color: 'var(--text-2)', marginBottom: '10px' }}>
           {existingBuildings.length} active developments · click a marker to explore
         </div>
+
+        {/* Near me button */}
+        <button
+          onClick={handleNearMe}
+          disabled={nearbyLoading}
+          style={{
+            width: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6,
+            background: 'var(--cyan-dim)', border: '1px solid var(--cyan)',
+            borderRadius: 6, padding: '7px 12px',
+            color: 'var(--cyan)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+          }}
+        >
+          {nearbyLoading
+            ? <><Loader2 size={13} style={{ animation: 'spin 1s linear infinite' }} /> Finding buildings near you...</>
+            : <><Navigation size={13} /> Buildings near me</>}
+        </button>
+        {nearbyError && <p style={{ fontSize: 11, color: '#f87171', marginTop: 6 }}>{nearbyError}</p>}
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
       </div>
 
-      {/* No building selected */}
-      {!building && !loading && (
+      {/* Nearby buildings list (shown after "near me" is clicked) */}
+      {nearbyList !== null && !building && (
+        <div style={{ flex: 1, overflowY: 'auto', padding: '12px 14px', display: 'flex', flexDirection: 'column', gap: 8 }}>
+          <div style={{ fontSize: 11, color: 'var(--text-3)', marginBottom: 4 }}>
+            {nearbyList.length === 0
+              ? 'No buildings found within 2 km.'
+              : `${nearbyList.length} building${nearbyList.length !== 1 ? 's' : ''} within 2 km of your location`}
+          </div>
+          {nearbyList.map(b => (
+            <div key={b.id} style={{
+              background: 'var(--surface)', border: '1px solid var(--border)',
+              borderRadius: 'var(--radius)', padding: '10px 12px',
+            }}>
+              <div style={{ fontWeight: 600, fontSize: 12, color: 'var(--text)', marginBottom: 3 }}>
+                {b.name || `Development #${b.id}`}
+              </div>
+              <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                <span className="tag tag-dim">{b.type}</span>
+                <span className="tag tag-dim">{b.floors} floors</span>
+                <span className="tag tag-cyan">{b.status}</span>
+                {b.org_name && <span className="tag tag-dim">{b.org_name}</span>}
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* No building selected (default idle state) */}
+      {!building && !loading && nearbyList === null && (
         <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: '12px', padding: '24px', color: 'var(--text-3)' }}>
           <MapPin size={32} strokeWidth={1} />
           <div style={{ textAlign: 'center' }}>
@@ -90,12 +164,11 @@ export function CitizenPanel({ building, impact, loading, existingBuildings = []
         </div>
       )}
 
-      {/* Loading */}
+      {/* Loading impact */}
       {loading && (
         <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', flexDirection: 'column', gap: '12px', color: 'var(--text-3)' }}>
           <div style={{ width: 32, height: 32, borderRadius: '50%', border: '2px solid var(--border)', borderTopColor: 'var(--cyan)', animation: 'spin 1s linear infinite' }} />
           <span style={{ fontSize: '12px' }}>Loading impact data...</span>
-          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       )}
 
@@ -112,9 +185,12 @@ export function CitizenPanel({ building, impact, loading, existingBuildings = []
               <span className="tag tag-dim">{building.type}</span>
               <span className="tag tag-dim">{building.floors} floors</span>
               <span className="tag tag-cyan">{building.status || 'Under Review'}</span>
+              {building.org_name && (
+                <span className="tag tag-dim" title="Builder organization">{building.org_name}</span>
+              )}
             </div>
 
-            {/* Plain-language summary — citizen friendly */}
+            {/* Plain-language summary */}
             <div style={{
               background: 'var(--surface)',
               border: '1px solid var(--border)',

@@ -1,5 +1,38 @@
 from pydantic import BaseModel
 from typing import Optional
+import uuid
+
+
+# ── Organization ──────────────────────────────────────────────────────────────
+
+class OrgOut(BaseModel):
+    id: uuid.UUID
+    name: str
+
+    model_config = {"from_attributes": True}
+
+
+# ── User ──────────────────────────────────────────────────────────────────────
+
+class UserRegister(BaseModel):
+    id: str                       # Supabase auth UID (UUID string)
+    email: str
+    role: str = "public"          # "public" | "org_member" | "org_admin"
+    org_name: Optional[str] = None  # stored as company_name in Supabase profiles
+    full_name: Optional[str] = None
+    avatar_url: Optional[str] = None
+
+
+class UserOut(BaseModel):
+    id: uuid.UUID
+    email: str
+    role: str
+    org_id: Optional[uuid.UUID] = None
+    org_name: Optional[str] = None
+    full_name: Optional[str] = None
+    company_name: Optional[str] = None
+
+    model_config = {"from_attributes": True}
 
 
 # ── Building ──────────────────────────────────────────────────────────────────
@@ -17,7 +50,7 @@ class BuildingCreate(BaseModel):
 
 
 class BuildingOut(BaseModel):
-    id: int
+    id: uuid.UUID
     name: Optional[str]
     type: str
     floors: int
@@ -26,6 +59,8 @@ class BuildingOut(BaseModel):
     lat: float
     lng: float
     status: str
+    org_id: Optional[uuid.UUID] = None
+    org_name: Optional[str] = None
 
     model_config = {"from_attributes": True}
 
@@ -39,7 +74,7 @@ class ImpactDimension(BaseModel):
 
 
 class ImpactOut(BaseModel):
-    building_id: int
+    building_id: uuid.UUID
     environmental: ImpactDimension
     traffic: ImpactDimension
     economic: ImpactDimension
@@ -51,5 +86,5 @@ class ImpactOut(BaseModel):
 
 class ChatMessage(BaseModel):
     message: str
-    building_id: Optional[int] = None
-    session_id: Optional[int] = None
+    building_id: Optional[uuid.UUID] = None
+    session_id: Optional[str] = None

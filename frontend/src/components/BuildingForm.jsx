@@ -1,5 +1,6 @@
 import { useState } from 'react'
-import { MapPin, RotateCcw, Sparkles } from 'lucide-react'
+import { MapPin, RotateCcw, Sparkles, Lock } from 'lucide-react'
+import { useAuth } from '../context/AuthContext'
 
 const DEFAULT_FORM = {
   name: '',
@@ -9,6 +10,29 @@ const DEFAULT_FORM = {
 
 export function BuildingForm({ coord, onSubmit, onReset, loading, onFormChange }) {
   const [form, setForm] = useState(DEFAULT_FORM)
+  const { isOrgUser } = useAuth()
+
+  if (!isOrgUser) {
+    return (
+      <div style={{
+        position: 'absolute', top: 60, left: 16,
+        width: 'var(--form-w)',
+        background: 'var(--bg-2)', border: '1px solid var(--border)',
+        borderRadius: 'var(--radius)', zIndex: 10, overflow: 'hidden',
+      }}>
+        <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Lock size={14} color="var(--text-3)" />
+          <span style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-2)' }}>Builder Mode</span>
+        </div>
+        <div style={{ padding: '20px 14px', display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '10px', textAlign: 'center' }}>
+          <Lock size={28} color="var(--text-3)" />
+          <p style={{ fontSize: '12px', color: 'var(--text-2)', margin: 0 }}>
+            Sign in with a <strong style={{ color: 'var(--cyan)' }}>Builder / Organization</strong> account to add buildings to the map.
+          </p>
+        </div>
+      </div>
+    )
+  }
 
   const set = (key, val) => {
     const newForm = { ...form, [key]: val }
@@ -76,7 +100,7 @@ export function BuildingForm({ coord, onSubmit, onReset, loading, onFormChange }
             {coord.lat.toFixed(5)}, {coord.lng.toFixed(5)}
           </span>
         ) : (
-          <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>Click the map to place a building</span>
+          <span style={{ fontSize: '11px', color: 'var(--text-3)' }}>Draw your buildable area on the map to get started</span>
         )}
       </div>
 
@@ -157,7 +181,7 @@ export function BuildingForm({ coord, onSubmit, onReset, loading, onFormChange }
 
         {!hasCoord && (
           <p style={{ textAlign: 'center', fontSize: '11px', color: 'var(--text-3)', margin: 0 }}>
-            Click anywhere on the map first
+            Draw a buildable area on the map below
           </p>
         )}
       </div>

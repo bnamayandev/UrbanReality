@@ -9,6 +9,7 @@ load_dotenv()
 
 from database import engine, Base
 from routers import buildings, chat, generate, trellis
+from routers import buildings, chat, generate, accounts
 from spatial import layers_status
 
 # Create all tables on startup
@@ -27,6 +28,7 @@ app.include_router(buildings.router)
 app.include_router(chat.router)
 app.include_router(generate.router)
 app.include_router(trellis.router)
+app.include_router(accounts.router)
 
 
 @app.get("/health")

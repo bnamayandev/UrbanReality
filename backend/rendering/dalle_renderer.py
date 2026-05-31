@@ -1,7 +1,7 @@
 """
-OpenAI DALL-E 3 building image generator.
+OpenAI building image generator (gpt-image-1).
 
-Required env var in backend/.env:
+Required env var:
   OPENAI_API_KEY=sk-...
 """
 
@@ -14,8 +14,6 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from PIL import Image
-
-load_dotenv()
 
 
 def _build_prompt(user_description: str) -> str:
@@ -41,7 +39,7 @@ def _normalise(raw: bytes) -> bytes:
 
 def generate_dalle_image(user_description: str) -> Optional[bytes]:
     """Generate a building image via gpt-image-1. Returns PNG bytes or None."""
-    load_dotenv(override=True)  # always re-read so key rotations take effect
+    load_dotenv(override=True)  # re-read on every call so key rotations take effect
     api_key = os.getenv("OPENAI_API_KEY", "")
     if not api_key or api_key.startswith("your_") or api_key.startswith("sk-your"):
         return None
@@ -64,6 +62,6 @@ def generate_dalle_image(user_description: str) -> Optional[bytes]:
 
     except Exception as e:
         import sys
-        print(f"[dalle_renderer] DALL-E 3 failed: {e}", file=sys.stderr)
+        print(f"[dalle_renderer] Image generation failed: {e}", file=sys.stderr)
 
     return None
