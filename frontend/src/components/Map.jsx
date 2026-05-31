@@ -12,7 +12,7 @@ const GLB_LAYER_ID = 'glb-building-model'
 const EMPTY_GEO = { type: 'FeatureCollection', features: [] }
 
 const MAP_STYLES = {
-  builder: 'mapbox://styles/mapbox/dark-v11',
+  builder: 'mapbox://styles/mapbox/satellite-streets-v12',
   citizen: 'mapbox://styles/mapbox/light-v11',
 }
 
@@ -26,11 +26,11 @@ const BUILDINGS_DARK = {
   paint: {
     'fill-extrusion-color': [
       'interpolate', ['linear'], ['get', 'height'],
-      0, '#0f1624', 50, '#131d2e', 100, '#162036', 200, '#1a2540',
+      0, '#c8bfb0', 50, '#bdb3a4', 100, '#b2a898', 200, '#a89d8c',
     ],
     'fill-extrusion-height':  ['get', 'height'],
     'fill-extrusion-base':    ['get', 'min_height'],
-    'fill-extrusion-opacity': 0.9,
+    'fill-extrusion-opacity': 0.75,
   },
 }
 
