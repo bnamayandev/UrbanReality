@@ -215,18 +215,6 @@ All Toronto Open Data is downloaded by `ml/data_pipeline.py` and stored as GeoPa
 - Integrate MPAC property assessment data for more accurate tax revenue estimates
 - Add air quality model using CANUE land-use regression coefficients
 
----
-
-## Team Roster
-
-| Name | Role | Contact |
-|------|------|---------|
-| Wali Mian | Backend Engineer (FastAPI, PostGIS, DB) | walimian21@gmail.com |
-| Ahmed | AI / ML Engineer (XGBoost, NeMoTron) | — |
-| Yusuf | Integration Lead + AI / ML | — |
-| Rehan | Frontend / UX + 3D Rendering | — |
-| Ben | 3D Rendering / Maps | — |
-| Omar | Data Engineer (Toronto Open Data pipeline) | — |
 
 ---
 
