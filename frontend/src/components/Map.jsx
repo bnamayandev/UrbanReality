@@ -365,7 +365,6 @@ function ExistingMarkers({ buildings, onSelect, selected }) {
 
 // ── Main Map component ─────────────────────────────────────────────────────────
 export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting, readOnly = false, mode = 'builder', mapPreview = null, trellisGlbUrl = null }) {
-export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting, readOnly = false, mode = 'builder', mapPreview = null, onBack = null }) {
   const mapRef = useRef(null)
   const [selectedExisting, setSelectedExisting] = useState(null)
   const isDark = mode === 'builder'
