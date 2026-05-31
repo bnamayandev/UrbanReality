@@ -68,11 +68,17 @@ def run_trellis(image_b64: str, job_id: str) -> str:
     input_img.write_bytes(raw)
     log.info("Wrote input image → %s", input_img)
 
+    # Force the env's python to also see the calling user's site-packages
+    # (cv2 etc. installed via `pip install --user` when env site-packages
+    # is owned by another user)
+    user_site = Path.home() / ".local/lib/python3.10/site-packages"
     cmd = (
         f"source {CONDA_SH} && "
         f"cd {TRELLIS_DIR} && "
         f"HF_HUB_DISABLE_XET=1 "
+        f"PYTHONPATH={user_site}:${{PYTHONPATH:-}} "
         f"conda run -n {CONDA_ENV} --no-capture-output "
+        f"env PYTHONPATH={user_site}:${{PYTHONPATH:-}} "
         f"python {EXAMPLE_PY} {input_img}"
     )
     log.info("Running TRELLIS (timeout=%ds): %s", TIMEOUT_SECS, cmd)
