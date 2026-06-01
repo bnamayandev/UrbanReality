@@ -1,0 +1,11 @@
+backend/venv/
+backend/__pycache__/
+backend/*.pyc
+backend/.env
+backend/glb_store/
+backend/tests/
+frontend/
+ml/
+data/
+TRELLIS2/
+.git/
