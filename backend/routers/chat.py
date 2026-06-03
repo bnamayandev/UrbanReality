@@ -1,13 +1,11 @@
 import os
 import json
 import uuid
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect, Depends
-from sqlalchemy.orm import Session
+from fastapi import APIRouter, WebSocket, WebSocketDisconnect
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
-from database import get_db
-from models import Building, Impact, AnalysisModule
+from database import _buildings, _impacts, _impact_modules
 
 load_dotenv()
 
@@ -39,7 +37,6 @@ async def _run_chat(message: str, building_context: dict | None, history: list) 
         extra_body={"think": False},
     )
     msg = resp.choices[0].message
-    # Thinking models may return null content with response in reasoning field
     text = (msg.content or "").strip()
     if not text:
         text = (getattr(msg, "reasoning", None) or "").strip()
@@ -55,19 +52,19 @@ def _fallback_chat(message: str) -> str:
     )
 
 
-def _building_context(building_id: str, db: Session) -> dict | None:
+def _building_context(building_id: str) -> dict | None:
     try:
-        submission_id = uuid.UUID(str(building_id))
+        key = str(uuid.UUID(str(building_id)))
     except (TypeError, ValueError):
         return None
 
-    s = db.query(Building).filter(Building.id == submission_id).first()
-    if not s:
+    b = _buildings.get(key)
+    if not b:
         return None
 
-    result = db.query(Impact).filter(Impact.submission_id == submission_id).first()
+    impact = _impacts.get(key)
     modules = []
-    if result:
+    if impact:
         modules = [
             {
                 "module_name": m.module_name,
@@ -75,26 +72,26 @@ def _building_context(building_id: str, db: Session) -> dict | None:
                 "summary": m.summary,
                 "details": m.details,
             }
-            for m in db.query(AnalysisModule).filter(AnalysisModule.result_id == result.id).all()
+            for m in _impact_modules.get(str(impact.id), [])
         ]
 
     return {
-        "project_name": s.project_name,
-        "building_type": s.building_type,
-        "proposed_height_m": float(s.proposed_height_m or 0),
-        "proposed_floor_area_sqm": float(s.proposed_floor_area_sqm or 0),
-        "proposed_units": s.proposed_units,
-        "status": s.status,
+        "project_name": b.project_name,
+        "building_type": b.building_type,
+        "proposed_height_m": float(b.proposed_height_m or 0),
+        "proposed_floor_area_sqm": float(b.proposed_floor_area_sqm or 0),
+        "proposed_units": b.proposed_units,
+        "status": b.status,
         "analysis": {
-            "overall_score": result.overall_score if result else None,
-            "narrative_summary": result.narrative_summary if result else None,
+            "overall_score": impact.overall_score if impact else None,
+            "narrative_summary": impact.narrative_summary if impact else None,
             "modules": modules,
         },
     }
 
 
 @router.websocket("/chat/{session_id}")
-async def chat_endpoint(websocket: WebSocket, session_id: str, db: Session = Depends(get_db)):
+async def chat_endpoint(websocket: WebSocket, session_id: str):
     await websocket.accept()
     history = []
     try:
@@ -105,7 +102,7 @@ async def chat_endpoint(websocket: WebSocket, session_id: str, db: Session = Dep
             if not message:
                 continue
 
-            building_context = _building_context(building_id, db) if building_id else None
+            building_context = _building_context(building_id) if building_id else None
             try:
                 reply = await _run_chat(message, building_context, history)
             except Exception as e:

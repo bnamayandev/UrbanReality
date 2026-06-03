@@ -11,7 +11,7 @@ from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 from jobs import create_job, get_job, update_job, JobStatus
-from ssh_runner import run_trellis
+from trellis_runner import run_trellis
 
 router = APIRouter(prefix="/trellis", tags=["trellis"])
 

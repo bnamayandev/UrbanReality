@@ -2,14 +2,13 @@ import os
 import re
 import json
 import uuid
+from math import radians, cos, sin, asin, sqrt
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy.orm import Session
-from geoalchemy2.functions import ST_MakePoint, ST_SetSRID, ST_DWithin
 from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
-from database import get_db
-from models import Building, Impact, AnalysisModule, AppUser
+from database import _buildings, _impacts, _impact_modules
+from models import AppUser, Building, Impact, AnalysisModule
 from schemas import BuildingCreate, BuildingOut, ImpactOut, ImpactDimension
 from spatial import get_spatial_context
 from xgb_models import predict_energy, predict_traffic, predict_economic
@@ -19,7 +18,15 @@ load_dotenv()
 
 router = APIRouter(prefix="/building", tags=["buildings"])
 
-# ── NeMoTron client — created lazily so MODEL_URL changes take effect ─────────
+
+def _haversine_km(lat1, lng1, lat2, lng2):
+    R = 6371
+    dlat = radians(lat2 - lat1)
+    dlng = radians(lng2 - lng1)
+    a = sin(dlat / 2) ** 2 + cos(radians(lat1)) * cos(radians(lat2)) * sin(dlng / 2) ** 2
+    return 2 * R * asin(sqrt(a))
+
+
 def _get_client() -> AsyncOpenAI:
     load_dotenv(override=True)
     return AsyncOpenAI(
@@ -83,11 +90,9 @@ Produce the JSON impact assessment."""
         extra_body={"think": False},
     )
     msg = resp.choices[0].message
-    # Thinking models may return null content with response in reasoning field
     content = (msg.content or "").strip()
     if not content:
         content = (getattr(msg, "reasoning", None) or "").strip()
-    # Strip any remaining <think>...</think> blocks
     content = re.sub(r"<think>.*?</think>", "", content, flags=re.DOTALL).strip()
     raw = None
     if "```" in content:
@@ -132,29 +137,29 @@ def _fallback_impact(building: dict) -> dict:
     }
 
 
-def _submission_to_out(s: Building) -> dict:
-    floors = max(1, int(round(float(s.proposed_height_m or 3.5) / 3.5)))
-    footprint_m2 = float(s.proposed_floor_area_sqm or 0) / floors if s.proposed_floor_area_sqm else 0.0
+def _building_to_out(b: Building) -> dict:
+    floors = max(1, int(round(float(b.proposed_height_m or 3.5) / 3.5)))
+    footprint_m2 = float(b.proposed_floor_area_sqm or 0) / floors if b.proposed_floor_area_sqm else 0.0
     return {
-        "id": s.id,
-        "name": s.project_name,
-        "type": s.building_type or "unknown",
+        "id": b.id,
+        "name": b.project_name,
+        "type": b.building_type or "unknown",
         "floors": floors,
         "footprint_m2": footprint_m2,
-        "units_per_floor": s.proposed_units,
-        "lat": s.site_lat,
-        "lng": s.site_lng,
-        "status": s.status,
+        "units_per_floor": b.proposed_units,
+        "lat": b.site_lat,
+        "lng": b.site_lng,
+        "status": b.status,
         "org_id": None,
         "org_name": None,
     }
 
 
-def _submission_spec(s: Building) -> dict:
-    out = _submission_to_out(s)
+def _building_spec(b: Building) -> dict:
+    out = _building_to_out(b)
     return {
         "type": out["type"],
-        "material": None,
+        "material": b.notes,
         "floors": out["floors"],
         "footprint_m2": out["footprint_m2"],
         "units_per_floor": out["units_per_floor"],
@@ -166,10 +171,11 @@ def _submission_spec(s: Building) -> dict:
 @router.post("", response_model=BuildingOut, status_code=201)
 def create_building(
     payload: BuildingCreate,
-    db: Session = Depends(get_db),
     current_user: AppUser = Depends(require_org_user),
 ):
-    submission = Building(
+    bid = uuid.uuid4()
+    building = Building(
+        id=bid,
         user_id=current_user.id,
         project_name=payload.name,
         site_lat=payload.lat,
@@ -180,84 +186,69 @@ def create_building(
         proposed_units=(payload.units_per_floor or 0) * payload.floors,
         notes=payload.material,
         status=(payload.status or "submitted"),
-        geom=ST_SetSRID(ST_MakePoint(payload.lng, payload.lat), 4326),
     )
-    db.add(submission)
-    db.commit()
-    db.refresh(submission)
-    return _submission_to_out(submission)
+    _buildings[str(bid)] = building
+    return _building_to_out(building)
 
 
 @router.get("s", response_model=list[BuildingOut])
-def list_buildings(db: Session = Depends(get_db)):
-    submissions = db.query(Building).all()
-    return [_submission_to_out(s) for s in submissions]
+def list_buildings():
+    return [_building_to_out(b) for b in _buildings.values()]
 
 
 @router.get("s/nearby", response_model=list[BuildingOut])
-def list_nearby_buildings(
-    lat: float,
-    lng: float,
-    radius_km: float = 2.0,
-    db: Session = Depends(get_db),
-):
-    submissions = (
-        db.query(Building)
-        .filter(
-            ST_DWithin(
-                Building.geom,
-                ST_SetSRID(ST_MakePoint(lng, lat), 4326),
-                radius_km * 1000,
-            )
-        )
-        .all()
-    )
-    return [_submission_to_out(s) for s in submissions]
+def list_nearby_buildings(lat: float, lng: float, radius_km: float = 2.0):
+    results = []
+    for b in _buildings.values():
+        if b.site_lat is not None and b.site_lng is not None:
+            if _haversine_km(lat, lng, b.site_lat, b.site_lng) <= radius_km:
+                results.append(_building_to_out(b))
+    return results
 
 
 @router.get("/{building_id}", response_model=BuildingOut)
-def get_building(building_id: uuid.UUID, db: Session = Depends(get_db)):
-    submission = db.query(Building).filter(Building.id == building_id).first()
-    if not submission:
-        raise HTTPException(status_code=404, detail="Submission not found")
-    return _submission_to_out(submission)
+def get_building(building_id: uuid.UUID):
+    b = _buildings.get(str(building_id))
+    if not b:
+        raise HTTPException(status_code=404, detail="Building not found")
+    return _building_to_out(b)
 
 
 @router.delete("/{building_id}", status_code=204)
-def delete_building(building_id: uuid.UUID, db: Session = Depends(get_db)):
-    submission = db.query(Building).filter(Building.id == building_id).first()
-    if not submission:
-        raise HTTPException(status_code=404, detail="Submission not found")
-    result = db.query(Impact).filter(Impact.submission_id == building_id).first()
-    if result:
-        db.query(AnalysisModule).filter(AnalysisModule.result_id == result.id).delete()
-        db.delete(result)
-    db.delete(submission)
-    db.commit()
+def delete_building(building_id: uuid.UUID):
+    key = str(building_id)
+    if key not in _buildings:
+        raise HTTPException(status_code=404, detail="Building not found")
+    impact = _impacts.get(key)
+    if impact:
+        _impact_modules.pop(str(impact.id), None)
+        del _impacts[key]
+    del _buildings[key]
 
 
 @router.delete("/{building_id}/impact", status_code=204)
-def clear_impact_cache(building_id: uuid.UUID, db: Session = Depends(get_db)):
-    result = db.query(Impact).filter(Impact.submission_id == building_id).first()
-    if not result:
-        raise HTTPException(status_code=404, detail="No cached analysis for this submission")
-    db.query(AnalysisModule).filter(AnalysisModule.result_id == result.id).delete()
-    db.delete(result)
-    db.commit()
+def clear_impact_cache(building_id: uuid.UUID):
+    key = str(building_id)
+    impact = _impacts.get(key)
+    if not impact:
+        raise HTTPException(status_code=404, detail="No cached analysis for this building")
+    _impact_modules.pop(str(impact.id), None)
+    del _impacts[key]
 
 
 @router.get("/{building_id}/impact", response_model=ImpactOut)
-async def get_impact(building_id: uuid.UUID, db: Session = Depends(get_db)):
-    submission = db.query(Building).filter(Building.id == building_id).first()
-    if not submission:
-        raise HTTPException(status_code=404, detail="Submission not found")
+async def get_impact(building_id: uuid.UUID):
+    key = str(building_id)
+    b = _buildings.get(key)
+    if not b:
+        raise HTTPException(status_code=404, detail="Building not found")
 
-    existing = db.query(Impact).filter(Impact.submission_id == building_id).first()
+    existing = _impacts.get(key)
     if existing:
-        return _result_row_to_schema(existing, db)
+        return _impact_to_schema(existing)
 
-    spec = _submission_spec(submission)
-    spatial = get_spatial_context(spec["lat"], spec["lng"], db)
+    spec = _building_spec(b)
+    spatial = get_spatial_context(spec["lat"], spec["lng"])
     xgb_energy = predict_energy(spec)
     xgb_traffic = predict_traffic(spec)
     xgb_economic = predict_economic(spec)
@@ -291,40 +282,42 @@ async def get_impact(building_id: uuid.UUID, db: Session = Depends(get_db)):
         })
 
     scores = [v["score"] for v in result.values()]
-    row = Impact(
+    result_id = uuid.uuid4()
+    impact = Impact(
+        id=result_id,
         submission_id=building_id,
         overall_score=int(round(sum(scores) / len(scores))),
         est_construction_jobs=(xgb_economic or {}).get("construction_jobs"),
         est_annual_utility_cost=(xgb_energy or {}).get("annual_cost"),
         est_daily_trips_added=(xgb_traffic or {}).get("daily_trips"),
         transit_access_score=result["traffic"].get("score"),
-        narrative_headline=f"{submission.project_name or 'Submission'} impact analysis",
+        narrative_headline=f"{b.project_name or 'Building'} impact analysis",
         narrative_summary=" ".join(v["description"] for v in result.values()),
     )
-    db.add(row)
-    db.flush()
-    for module_name, module in result.items():
-        db.add(AnalysisModule(
-            result_id=row.id,
-            module_name=module_name,
+    _impacts[key] = impact
+    _impact_modules[str(result_id)] = [
+        AnalysisModule(
+            id=uuid.uuid4(),
+            result_id=result_id,
+            module_name=name,
             score=module["score"],
             summary=module["description"],
             details=module,
-        ))
-    db.commit()
-    db.refresh(row)
-    return _result_row_to_schema(row, db)
+        )
+        for name, module in result.items()
+    ]
+    return _impact_to_schema(impact)
 
 
-def _result_row_to_schema(row: Impact, db: Session) -> ImpactOut:
+def _impact_to_schema(impact: Impact) -> ImpactOut:
     modules = {
         m.module_name: {"score": m.score or 50, "description": m.summary or "", **(m.details or {})}
-        for m in db.query(AnalysisModule).filter(AnalysisModule.result_id == row.id).all()
+        for m in _impact_modules.get(str(impact.id), [])
     }
     fallback = _fallback_impact({"floors": 10, "footprint_m2": 1000, "units_per_floor": 10})
     data = {dim: modules.get(dim, fallback[dim]) for dim in ["environmental", "traffic", "economic", "infrastructure", "housing"]}
     return ImpactOut(
-        building_id=row.submission_id,
+        building_id=impact.submission_id,
         environmental=ImpactDimension(**data["environmental"]),
         traffic=ImpactDimension(**data["traffic"]),
         economic=ImpactDimension(**data["economic"]),

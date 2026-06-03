@@ -7,12 +7,8 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from database import engine, Base
 from routers import buildings, chat, generate, trellis, accounts
 from spatial import layers_status
-
-# Create all tables on startup
-Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="UrbanForge API", version="1.0.0")
 

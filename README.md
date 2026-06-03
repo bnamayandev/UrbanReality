@@ -9,7 +9,6 @@
 
 ### Prerequisites
 - Python 3.10+, Node.js 18+
-- PostgreSQL with PostGIS extension
 - NVIDIA GPU + Ollama (for local LLM) **or** NVIDIA Build API key
 
 ### 1. Clone & configure environment
@@ -79,11 +78,11 @@ ollama pull nemotron3:33b             # ~27 GB
 │                                                         │
 │  ┌─────────────┐  ┌──────────────┐  ┌───────────────┐  │
 │  │  spatial.py │  │ xgb_models.py│  │  agents/      │  │
-│  │  PostGIS    │  │  XGBoost     │  │  NeMoTron     │  │
+│  │  GeoParquet │  │  XGBoost     │  │  NeMoTron     │  │
 │  │  500m query │  │  (instant)   │  │  (narrative)  │  │
 │  └─────────────┘  └──────────────┘  └───────────────┘  │
 │                                                         │
-│  PostgreSQL + PostGIS (spatial DB)                      │
+│  In-memory store (no database required)                 │
 └───────────────┬─────────────────────────────────────────┘
                 │
                 ▼
@@ -99,11 +98,11 @@ ollama pull nemotron3:33b             # ~27 GB
 ```
 User places building (lat, lng, floors, type, footprint_m2)
         ↓
-POST /building → saved to PostGIS DB
+POST /building → saved to in-memory store
         ↓
 GET /building/{id}/impact
         ↓
-spatial.py — PostGIS 500m radius query
+spatial.py — GeoParquet 500m radius query (in-memory, loaded at startup)
   → TTC stops, traffic intersections, street trees, businesses, zoning
         ↓
 XGBoost (< 100 ms, no GPU needed):
@@ -114,7 +113,7 @@ XGBoost (< 100 ms, no GPU needed):
 NeMoTron (localhost:11434) → narrative descriptions + infrastructure & housing scores
   (rule-based fallback if NeMoTron times out — demo safe)
         ↓
-5-dimension blended result → cached in DB → rendered in frontend
+5-dimension blended result → cached in memory → rendered in frontend
 ```
 
 ### Key API endpoints
@@ -139,9 +138,6 @@ API docs auto-generated at **http://localhost:8001/docs**
 Copy `backend/.env.example` to `backend/.env` and fill in the values:
 
 ```bash
-# Database
-DATABASE_URL=postgresql://postgres:postgres@localhost/urbanforge
-
 # LLM — Ollama on DGX Spark (already running)
 MODEL_URL=http://localhost:11434/v1
 MODEL_NAME=nemotron-3-super:latest   # or nemotron3:33b for faster demo
@@ -160,13 +156,12 @@ MAPBOX_TOKEN=your_mapbox_token_here
 ```
 
 **Minimum required keys to run the demo:**
-- `DATABASE_URL` — local Postgres with PostGIS, or the Supabase URL in `.env.example`
 - `MAPBOX_TOKEN` — free tier on mapbox.com is sufficient
 - `MODEL_URL` + `MODEL_NAME` — either local Ollama or NVIDIA Build API
 
-### Demo buildings (pre-seeded)
+### Demo buildings
 
-The backend will automatically create demo buildings in the DB on first run if the DB is empty. You can also manually create one via curl:
+Buildings are stored in memory and reset on restart. Create one via curl:
 
 ```bash
 curl -X POST http://localhost:8001/building \
@@ -204,9 +199,10 @@ All Toronto Open Data is downloaded by `ml/data_pipeline.py` and stored as GeoPa
 
 - **Energy model accuracy is low (R² ≈ 0.47)** — the EWRB dataset includes non-residential buildings (fire stations, libraries) which skew predictions for high-rise residential. Environmental scores should be treated as directional, not precise.
 - **NeMoTron latency** — the 86 GB model takes ~45 seconds per analysis on DGX Spark. The 33B model (~15 s) is recommended for demos. Rule-based fallback fires automatically on timeout.
-- **PostGIS spatial data** — spatial queries return real results only after `data_pipeline.py` has loaded Toronto Open Data into the DB. Without this step, spatial context features default to zeros.
+- **Spatial data** — spatial queries return real results only after `data_pipeline.py` has produced GeoParquet files in `data/`. Without this step, spatial context features default to zeros.
 - **3D GLB generation (TRELLIS.2)** — requires SSH access to the DGX Spark GPU server; not available in local dev without the SSH keys configured in `.env`.
-- **No authentication in demo mode** — auth was removed to simplify the hackathon demo. Do not deploy publicly without re-enabling it.
+- **No persistence** — all buildings and impact results are in-memory and reset on restart. No database or authentication required.
+- **No authentication** — all requests use a hardcoded demo user. Do not deploy publicly without re-enabling auth.
 
 ### Next steps
 
@@ -235,9 +231,9 @@ UrbanForge/
 │   ├── rendering/
 │   │   └── building_renderer.py  # Pillow deterministic renderer (fallback)
 │   ├── main.py
-│   ├── models.py               # SQLAlchemy ORM
+│   ├── models.py               # Dataclass models (in-memory)
 │   ├── schemas.py              # Pydantic schemas
-│   ├── spatial.py              # PostGIS 500m radius queries
+│   ├── spatial.py              # GeoParquet 500m radius queries (in-memory)
 │   ├── xgb_models.py           # XGBoost inference
 │   ├── requirements.txt
 │   └── .env.example

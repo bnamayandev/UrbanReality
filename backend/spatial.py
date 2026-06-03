@@ -98,7 +98,7 @@ def _query_nearest(layer_key: str, point_4326: Point, label_col: str, extra_cols
     return results[0] if results else None
 
 
-def get_spatial_context(lat: float, lng: float, db=None) -> dict:
+def get_spatial_context(lat: float, lng: float) -> dict:
     key = _cache_key(lat, lng)
     if key in _cache:
         return _cache[key]
