@@ -239,3 +239,18 @@ frontend/.env.local
 
 # Root-level lock file (no root package.json in source control)
 package-lock.json
+
+# Stable Fast 3D — lean-vendored: keep source + load/ data, drop the heavy/regenerable bits.
+# (build/, *.so, *.egg-info, __pycache__ are also handled by the vendored sub-.gitignore)
+rendering-pipeline/stable-fast-3d/.venv-sf3d/
+rendering-pipeline/stable-fast-3d/demo_files/
+rendering-pipeline/stable-fast-3d/**/build/
+rendering-pipeline/stable-fast-3d/**/*.egg-info/
+
+# Runtime 3D + image-generation artifacts (temp images, meshes, render output)
+backend/glb_store/
+*.glb
+sample.mp4
+**/output/
+**/sf3d_out/
+**/_generated/
