@@ -18,7 +18,7 @@ from dotenv import load_dotenv
 
 from rendering.ai_renderer import generate_ai_image
 from rendering.building_renderer import render_building
-from rendering.dalle_renderer import edit_dalle_image
+from rendering.gemini_renderer import edit_gemini_image
 
 load_dotenv()
 
@@ -82,7 +82,7 @@ def _infer_params(prompt: str) -> tuple[str, str, int, str]:
 @router.post("/edit-image", response_model=GenerateResponse)
 def edit_image(req: EditImageRequest):
     try:
-        png = edit_dalle_image(req.image_b64, req.edit_prompt)
+        png = edit_gemini_image(req.image_b64, req.edit_prompt)
     except Exception as e:
         traceback.print_exc()
         raise HTTPException(status_code=502, detail=f"Image edit error: {e}")
@@ -90,13 +90,13 @@ def edit_image(req: EditImageRequest):
     if png is None:
         raise HTTPException(
             status_code=503,
-            detail="Image edit failed — check OPENAI_API_KEY and quota",
+            detail="Image edit failed — check GOOGLE_API_KEY and quota",
         )
 
     return GenerateResponse(
         image_b64=base64.b64encode(png).decode(),
         image_path="(in-memory)",
-        metadata={"renderer": "gpt-image-1 edit", "edit_prompt": req.edit_prompt},
+        metadata={"renderer": "gemini-3.1-flash-image edit", "edit_prompt": req.edit_prompt},
     )
 
 

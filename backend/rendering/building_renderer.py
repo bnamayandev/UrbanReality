@@ -1,9 +1,9 @@
 """
 Building image generator.
 
-Primary path: DALL-E 3 via OpenAI.
+Primary path: Gemini (gemini-3.1-flash-image) via Google.
 Fallback: a deterministic Pillow silhouette so the demo never breaks when
-the OpenAI key is missing, rate-limited, or quota-exhausted.
+the Google key is missing, rate-limited, or quota-exhausted.
 """
 
 from __future__ import annotations
@@ -13,7 +13,7 @@ from typing import Optional
 
 from PIL import Image, ImageDraw, ImageFont
 
-from rendering.dalle_renderer import generate_dalle_image
+from rendering.gemini_renderer import generate_gemini_image
 
 
 CANVAS = (800, 1000)
@@ -76,7 +76,7 @@ def render_building(
     user_description: str = "",
 ) -> Optional[bytes]:
     desc = user_description or f"{size} {style.replace('_', ' ')} {building_type} {floors} floors"
-    png = generate_dalle_image(user_description=desc)
+    png = generate_gemini_image(user_description=desc)
     if png:
         return png
     return _pillow_silhouette(building_type, style, floors)
