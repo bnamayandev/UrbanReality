@@ -10,8 +10,9 @@ if [ ! -x "$VENV_PYTHON" ]; then
   exit 1
 fi
 
-# ── TRELLIS local paths + GPU ─────────────────────────────────────────────────
-export TRELLIS_DIR="$ROOT/rendering-pipeline/trellis-server"
+# ── 3D (Stable Fast 3D) + GPU ─────────────────────────────────────────────────
+# SF3D runs in its own venv; override here if it lives elsewhere.
+export SF3D_DIR="$ROOT/rendering-pipeline/stable-fast-3d"
 export CUDA_VISIBLE_DEVICES=0
 
 # ── npm deps ──────────────────────────────────────────────────────────────────

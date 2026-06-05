@@ -3,31 +3,31 @@ import { Loader, X, RefreshCw, Cuboid, Pencil, Check, ArrowLeft } from 'lucide-r
 
 const API_BASE = import.meta.env.VITE_API_BASE || '/api'
 
-async function startTrellisJob(imageB64) {
-  const res = await fetch(`${API_BASE}/trellis/generate-3d`, {
+async function startRender3dJob(imageB64) {
+  const res = await fetch(`${API_BASE}/render3d/generate-3d`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ image_b64: imageB64 }),
   })
-  if (!res.ok) throw new Error(`TRELLIS start failed: ${res.status}`)
+  if (!res.ok) throw new Error(`3D generation start failed: ${res.status}`)
   return res.json()
 }
 
 async function pollJob(jobId) {
-  const res = await fetch(`${API_BASE}/trellis/status/${jobId}`)
+  const res = await fetch(`${API_BASE}/render3d/status/${jobId}`)
   if (!res.ok) throw new Error(`Poll failed: ${res.status}`)
   return res.json()
 }
 
 const STEPS = [
-  'Uploading image to GX10…',
-  'TRELLIS.2 initializing…',
+  'Uploading image…',
+  'Stable Fast 3D initializing…',
   'Generating 3D mesh…',
   'Exporting GLB…',
 ]
 
 export function ImageConfirmModal({ imageSrc, imageB64, onConfirm, onDeny }) {
-  // Trellis state
+  // 3D generation state
   const [state, setState] = useState('idle')   // idle | starting | pending | running | done | error
   const [errMsg, setErrMsg] = useState(null)
   const [stepIdx, setStepIdx] = useState(0)
@@ -88,7 +88,7 @@ export function ImageConfirmModal({ imageSrc, imageB64, onConfirm, onDeny }) {
 
     try {
       const b64 = currentB64.includes(',') ? currentB64.split(',')[1] : currentB64
-      const { job_id } = await startTrellisJob(b64)
+      const { job_id } = await startRender3dJob(b64)
       setState('pending')
       schedulePoll(job_id)
     } catch (e) {
@@ -197,7 +197,7 @@ export function ImageConfirmModal({ imageSrc, imageB64, onConfirm, onDeny }) {
                 </div>
                 {isRunning && (
                   <div style={{ color: 'rgba(255,255,255,0.45)', fontSize: 11 }}>
-                    TRELLIS.2 on the GX10 — this takes 2–10 min
+                    Stable Fast 3D running locally — usually under a minute
                   </div>
                 )}
               </div>

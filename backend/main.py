@@ -7,7 +7,7 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
-from routers import buildings, chat, generate, trellis, accounts
+from routers import buildings, chat, generate, render3d, accounts
 from spatial import layers_status
 
 app = FastAPI(title="UrbanForge API", version="1.0.0")
@@ -22,7 +22,7 @@ app.add_middleware(
 app.include_router(buildings.router)
 app.include_router(chat.router)
 app.include_router(generate.router)
-app.include_router(trellis.router)
+app.include_router(render3d.router)
 app.include_router(accounts.router)
 
 
@@ -31,14 +31,14 @@ def health():
     return {"status": "ok", "spatial_layers": layers_status()}
 
 
-@app.get("/debug/nemotron")
-async def debug_nemotron():
-    """Test NeMoTron connection directly — remove before production."""
+@app.get("/debug/llm")
+async def debug_llm():
+    """Test the local LLM (Ollama/qwen3) connection directly — remove before production."""
     client = AsyncOpenAI(
         base_url=os.getenv("MODEL_URL", "http://localhost:11434/v1"),
         api_key=os.getenv("NGC_API_KEY", "not-needed"),
     )
-    model = os.getenv("MODEL_NAME", "nemotron-3-super:latest")
+    model = os.getenv("MODEL_NAME", "qwen3:8b")
     try:
         resp = await client.chat.completions.create(
             model=model,

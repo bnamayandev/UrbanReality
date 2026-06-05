@@ -47,12 +47,12 @@ function LoadingState({ message }) {
 
 export function ImpactPanel({
   building, impact, loading, loadingMessage, error, renderPayload,
-  confirmedImageSrc, trellisGlbUrl, onAnalyzeImpact,
+  confirmedImageSrc, glbUrl, onAnalyzeImpact,
 }) {
   const [expanded, setExpanded] = useState(true)
   const [showChat, setShowChat] = useState(false)
 
-  if (!building && !loading && !trellisGlbUrl) return null
+  if (!building && !loading && !glbUrl) return null
 
   const scores = impact ? DIMENSIONS.map(d => impact[d.key]?.score ?? 0) : []
   const avgScore = scores.length ? Math.round(scores.reduce((a, b) => a + b) / scores.length) : 0
@@ -71,12 +71,12 @@ export function ImpactPanel({
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: '10px' }}>
           <div style={{ flex: 1 }}>
             <div style={{ fontWeight: 600, fontSize: '14px', marginBottom: '2px' }}>
-              {building?.name || (trellisGlbUrl ? '3D Model Ready' : 'Proposed Building')}
+              {building?.name || (glbUrl ? '3D Model Ready' : 'Proposed Building')}
             </div>
             <div style={{ fontSize: '11px', color: 'var(--text-2)' }}>
               {building
                 ? `${building.type} · ${building.floors}F · ${Number(building.footprint_m2).toLocaleString()} m²`
-                : trellisGlbUrl ? 'TRELLIS.2 generation complete' : ''}
+                : glbUrl ? '3D model ready' : ''}
             </div>
           </div>
           {impact && (
@@ -108,11 +108,11 @@ export function ImpactPanel({
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column' }}>
 
         {/* 3D view — shown whenever we have image or GLB */}
-        {(confirmedImageSrc || trellisGlbUrl) && (
+        {(confirmedImageSrc || glbUrl) && (
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
             <Building3DView
               imageSrc={confirmedImageSrc}
-              glbUrl={trellisGlbUrl}
+              glbUrl={glbUrl}
               style={{ width: '100%' }}
             />
             {renderPayload?.naturalLanguage && (
@@ -130,8 +130,8 @@ export function ImpactPanel({
           </div>
         )}
 
-        {/* Analyze Impact CTA — shown after TRELLIS, before impact runs */}
-        {trellisGlbUrl && !building && !loading && (
+        {/* Analyze Impact CTA — shown after 3D model, before impact runs */}
+        {glbUrl && !building && !loading && (
           <div style={{ padding: '14px 16px', borderBottom: '1px solid var(--border)' }}>
             <button
               className="btn btn-primary"

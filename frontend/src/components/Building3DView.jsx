@@ -1,7 +1,7 @@
 /**
  * Building3DView — dumb display component.
- * Receives an already-generated image and/or TRELLIS GLB URL.
- * No fetching, no TRELLIS triggering — that all lives in ImageConfirmModal + App.
+ * Receives an already-generated image and/or GLB URL.
+ * No fetching, no 3D-generation triggering — that all lives in ImageConfirmModal + App.
  */
 import { Download } from 'lucide-react'
 
@@ -40,7 +40,7 @@ export function Building3DView({ imageSrc, glbUrl, style }) {
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, color: 'var(--cyan)', fontWeight: 600 }}>
               <div style={{ width: 6, height: 6, borderRadius: '50%', background: 'var(--cyan)', boxShadow: '0 0 5px var(--cyan)' }} />
-              3D Model — TRELLIS.2
+              3D Model — Stable Fast 3D
             </div>
             <a
               href={glbUrl}

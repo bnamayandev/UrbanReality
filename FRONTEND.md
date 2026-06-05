@@ -145,7 +145,7 @@ const impact = await res.json()
 
 Score is 0–100. Higher = bigger impact (not necessarily bad — high economic score is good).
 
-**Note:** First call takes ~15–45s (Nemotron is thinking). Second call for same building is instant (cached). Show a loading state.
+**Note:** First call can take several seconds (qwen3 is thinking, and the model may need to load into VRAM). Second call for the same building is instant (cached). Show a loading state.
 
 ### 3. List all buildings (for the public map view)
 ```js
@@ -236,12 +236,12 @@ Use `lucide-react` for icons.
 
 ## Loading state
 
-Nemotron can take 15–45 seconds. Show something real while waiting — not a spinner:
+The LLM can take several seconds. Show something real while waiting — not a spinner:
 
 ```
 Analyzing 500m radius...
 Running traffic model...
-Consulting NeMoTron...
+Consulting qwen3...
 ```
 
 Cycle through these with a 3s interval. Makes the wait feel purposeful.

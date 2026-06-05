@@ -27,7 +27,7 @@ export default function App() {
   const [mapPreview,       setMapPreview]       = useState({ image: null, loading: false })
   const [imageModal,       setImageModal]       = useState({ open: false, imageSrc: null, imageB64: null })
   const [confirmedImageSrc, setConfirmedImageSrc] = useState(null)
-  const [trellisGlbUrl,    setTrellisGlbUrl]   = useState(null)
+  const [glbUrl,    setGlbUrl]   = useState(null)
   const [pendingFormData,  setPendingFormData]  = useState(null)
 
   const previewTimerRef = useRef(null)
@@ -47,8 +47,8 @@ export default function App() {
   }, [])
 
   useEffect(() => {
-    if (building || selected || trellisGlbUrl) setPanelOpen(true)
-  }, [building, selected, trellisGlbUrl])
+    if (building || selected || glbUrl) setPanelOpen(true)
+  }, [building, selected, glbUrl])
 
   const generateMapPreview = async (formData, coordVal) => {
     if (!coordVal) return
@@ -82,7 +82,7 @@ export default function App() {
       reset(); reset3D()
       setCoord(null); setPanelOpen(false); setRenderPayload(null)
       setMapPreview({ image: null, loading: false })
-      setTrellisGlbUrl(null); setConfirmedImageSrc(null); setPendingFormData(null)
+      setGlbUrl(null); setConfirmedImageSrc(null); setPendingFormData(null)
       clearTimeout(previewTimerRef.current)
       if (previewAbortRef.current) previewAbortRef.current.abort()
     }
@@ -125,10 +125,10 @@ export default function App() {
     setMapPreview({ image: null, loading: false })
   }
 
-  // Step 2b: TRELLIS done — GLB URL arrives, panel opens
+  // Step 2b: 3D model done — GLB URL arrives, panel opens
   // finalImageSrc is the image as it was when the user clicked Create 3D (may be edited)
-  const handleTrellisComplete = (glbUrl, finalImageSrc) => {
-    setTrellisGlbUrl(glbUrl)
+  const handleModelComplete = (glbUrl, finalImageSrc) => {
+    setGlbUrl(glbUrl)
     setConfirmedImageSrc(finalImageSrc || imageModal.imageSrc)
     setImageModal({ open: false, imageSrc: null, imageB64: null })
     setMapPreview({ image: null, loading: false }) // clear billboard so 3D takes over
@@ -148,7 +148,7 @@ export default function App() {
     reset(); reset3D()
     setCoord(null); setSelected(null); setPanelOpen(false); setRenderPayload(null)
     setMapPreview({ image: null, loading: false })
-    setTrellisGlbUrl(null); setConfirmedImageSrc(null); setPendingFormData(null)
+    setGlbUrl(null); setConfirmedImageSrc(null); setPendingFormData(null)
     setImageModal({ open: false, imageSrc: null, imageB64: null })
     setLiveForm(DEFAULT_FORM)
     clearTimeout(previewTimerRef.current)
@@ -201,7 +201,7 @@ export default function App() {
           readOnly={isCitizen}
           mode={mode}
           mapPreview={isCitizen ? null : mapPreview}
-          trellisGlbUrl={trellisGlbUrl}
+          glbUrl={glbUrl}
           onBack={!isCitizen && panelOpen ? handleReset : null}
         />
 
@@ -224,7 +224,7 @@ export default function App() {
             display: 'flex', alignItems: 'center', gap: '10px',
           }}>
             <span style={{ fontSize: '12px', color: 'var(--text-2)' }}>
-              {building?.name || (trellisGlbUrl ? '3D model ready' : `Building #${building?.id}`)}
+              {building?.name || (glbUrl ? '3D model ready' : `Building #${building?.id}`)}
             </span>
             <button className="btn btn-ghost" onClick={handleReset}
               style={{ padding: '4px 10px', fontSize: '11px' }}>
@@ -248,7 +248,7 @@ export default function App() {
               error={impactError}
               renderPayload={renderPayload}
               confirmedImageSrc={confirmedImageSrc}
-              trellisGlbUrl={trellisGlbUrl}
+              glbUrl={glbUrl}
               onAnalyzeImpact={handleAnalyzeImpact}
             />
           </div>
@@ -277,12 +277,12 @@ export default function App() {
         </span>
       </div>
 
-      {/* Image confirm → TRELLIS modal */}
+      {/* Image confirm → 3D generation modal */}
       {imageModal.open && (
         <ImageConfirmModal
           imageSrc={imageModal.imageSrc}
           imageB64={imageModal.imageB64}
-          onConfirm={handleTrellisComplete}
+          onConfirm={handleModelComplete}
           onDeny={handleImageDeny}
         />
       )}

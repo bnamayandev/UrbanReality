@@ -8,7 +8,7 @@
 
 **UrbanForge** — NVIDIA Hackathon 2026 (Toronto, Urban Operations track). 6-person team, 36-hour build.
 
-AI-powered urban development intelligence: place a proposed building anywhere on a Toronto 3D map, get instant AI impact analysis (environmental, traffic, economic, infrastructure, housing) powered by Nemotron running locally on a DGX Spark GPU.
+AI-powered urban development intelligence: place a proposed building anywhere on a Toronto 3D map, get instant AI impact analysis (environmental, traffic, economic, infrastructure, housing). Current local stack: **qwen3:8b** (Ollama) for analysis, **gemini-3.1-flash-image** for the 2D preview, and **Stable Fast 3D** for the 3D model — all on a single 8 GB GPU (LLM and SF3D run sequentially).
 
 Full spec: open `project-blueprint.html` in a browser.
 
@@ -44,8 +44,10 @@ Full spec: open `project-blueprint.html` in a browser.
 
 **Qwen** also runs via llama.cpp (port 8000): `./run_qwen3.6.sh` (chmod +x first)
 
+> **Local dev (single 8 GB GPU):** the app now runs `qwen3:8b` (Ollama) + Stable Fast 3D locally; the DGX/Nemotron models below are legacy from the original deploy target.
+
 ### Services
-- **Ollama** (Nemotron): `ollama serve` → port 11434
+- **Ollama** (qwen3:8b): `ollama serve` → port 11434
 - **FastAPI backend**: `uvicorn main:app --host 0.0.0.0 --port 8001 --reload`
 - Run both in tmux: `tmux new -s <name>`, detach with Ctrl+B then D
 

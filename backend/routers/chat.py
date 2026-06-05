@@ -6,6 +6,7 @@ from openai import AsyncOpenAI
 from dotenv import load_dotenv
 
 from database import _buildings, _impacts, _impact_modules
+from gpu_coordinator import gpu_lock_async
 
 load_dotenv()
 
@@ -15,7 +16,7 @@ _client = AsyncOpenAI(
     base_url=os.getenv("MODEL_URL", "http://localhost:11434/v1"),
     api_key=os.getenv("NGC_API_KEY", "not-needed"),
 )
-MODEL_NAME = os.getenv("MODEL_NAME", "nemotron-3-super:latest")
+MODEL_NAME = os.getenv("MODEL_NAME", "qwen3:8b")
 
 _CHAT_SYSTEM = """You are UrbanForge's citizen assistant for Toronto urban development.
 You have access to real Toronto Open Data - traffic, zoning, trees, transit, businesses.
@@ -29,13 +30,15 @@ async def _run_chat(message: str, building_context: dict | None, history: list) 
     messages = [{"role": "system", "content": _CHAT_SYSTEM + ctx}]
     messages.extend(history[-6:])
     messages.append({"role": "user", "content": message})
-    resp = await _client.chat.completions.create(
-        model=MODEL_NAME,
-        messages=messages,
-        temperature=0.5,
-        max_tokens=800,
-        extra_body={"think": False},
-    )
+    # Share the single GPU with SF3D: wait if a 3D job is running.
+    async with gpu_lock_async():
+        resp = await _client.chat.completions.create(
+            model=MODEL_NAME,
+            messages=messages,
+            temperature=0.5,
+            max_tokens=800,
+            extra_body={"think": False},
+        )
     msg = resp.choices[0].message
     text = (msg.content or "").strip()
     if not text:

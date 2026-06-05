@@ -13,6 +13,7 @@ from schemas import BuildingCreate, BuildingOut, ImpactOut, ImpactDimension
 from spatial import get_spatial_context
 from xgb_models import predict_energy, predict_traffic, predict_economic
 from auth import require_org_user
+from gpu_coordinator import gpu_lock_async
 
 load_dotenv()
 
@@ -35,7 +36,7 @@ def _get_client() -> AsyncOpenAI:
     )
 
 def _get_model() -> str:
-    return os.getenv("MODEL_NAME", "nemotron-3-super:latest")
+    return os.getenv("MODEL_NAME", "qwen3:8b")
 
 _IMPACT_SYSTEM = """You are an urban planning AI analyst for the city of Toronto.
 Given a proposed building's specifications and nearby geospatial context,
@@ -79,16 +80,18 @@ Parks: {json.dumps(parks[:2])}
 Businesses: {len(bizs)} active ({list(set(b.get('Category','') for b in bizs[:20] if b.get('Category')))})
 Produce the JSON impact assessment."""
 
-    resp = await _get_client().chat.completions.create(
-        model=_get_model(),
-        messages=[
-            {"role": "system", "content": _IMPACT_SYSTEM},
-            {"role": "user", "content": prompt},
-        ],
-        temperature=0.3,
-        max_tokens=1024,
-        extra_body={"think": False},
-    )
+    # Share the single GPU with SF3D: wait if a 3D job is running.
+    async with gpu_lock_async():
+        resp = await _get_client().chat.completions.create(
+            model=_get_model(),
+            messages=[
+                {"role": "system", "content": _IMPACT_SYSTEM},
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.3,
+            max_tokens=1024,
+            extra_body={"think": False},
+        )
     msg = resp.choices[0].message
     content = (msg.content or "").strip()
     if not content:

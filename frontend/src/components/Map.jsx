@@ -280,7 +280,7 @@ function ExistingMarkers({ buildings, onSelect, selected }) {
 }
 
 // ── Main Map component ─────────────────────────────────────────────────────────
-export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting, readOnly = false, mode = 'builder', mapPreview = null, trellisGlbUrl = null, onBack = null, onFootprintChange = null }) {
+export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onSelectExisting, readOnly = false, mode = 'builder', mapPreview = null, glbUrl = null, onBack = null, onFootprintChange = null }) {
   const mapRef = useRef(null)
   const [selectedExisting, setSelectedExisting] = useState(null)
   const isDark = true
@@ -312,7 +312,7 @@ export function Map({ onCoordSelect, coord, buildingForm, existingBuildings, onS
   }, [])
 
   // GLB building at drawn area
-  useGLBLayer(mapRef, rectCoord, rectDims, rotationRef, glbScaleRef, setBuildingFootprint, trellisGlbUrl)
+  useGLBLayer(mapRef, rectCoord, rectDims, rotationRef, glbScaleRef, setBuildingFootprint, glbUrl)
 
   // Draw interaction — active only while isDrawMode is true
   useEffect(() => {

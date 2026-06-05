@@ -7,5 +7,5 @@ backend/tests/
 frontend/
 ml/
 data/
-TRELLIS2/
+rendering-pipeline/stable-fast-3d/.venv-sf3d/
 .git/
