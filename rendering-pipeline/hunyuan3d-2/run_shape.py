@@ -33,12 +33,12 @@ from hy3dgen.shapegen.pipelines import export_to_trimesh
 
 def _apply_projection_texture(mesh, image):
     """
-    Orthographic front-projection: maps each vertex's (x, y) position to the
-    corresponding pixel in the input image. The main facade (facing the camera)
-    gets the exact colors from the rendered building image. Back/side faces are
-    projected too — they'll show a stretched version, but no grey artifacts.
+    Triplanar projection: splits the mesh so every face has its own UV
+    coordinates, then picks the projection axis (X/Y/Z) based on each
+    face's dominant normal. Front/back faces get the full building image;
+    side faces get the left/right edge strip; top/bottom faces get the
+    top edge strip. Every face is covered — no grey missing-texture areas.
     """
-    # Composite RGBA onto a neutral grey background so the GLB has no alpha channel
     if image.mode == "RGBA":
         bg = Image.new("RGB", image.size, (180, 180, 180))
         bg.paste(image, mask=image.split()[3])
@@ -47,20 +47,56 @@ def _apply_projection_texture(mesh, image):
         img_rgb = image.convert("RGB")
 
     verts = np.array(mesh.vertices, dtype=np.float64)
-    x, y = verts[:, 0], verts[:, 1]
+    faces = np.array(mesh.faces)
 
-    uv_u = (x - x.min()) / max(x.max() - x.min(), 1e-8)
-    # Flip V: image origin is top-left, mesh Y increases upward
-    uv_v = 1.0 - (y - y.min()) / max(y.max() - y.min(), 1e-8)
-    uv = np.clip(np.column_stack([uv_u, uv_v]), 0.0, 1.0).astype(np.float32)
+    # Normalize vertex positions to [0, 1] on each axis
+    bmin = verts.min(axis=0)
+    bmax = verts.max(axis=0)
+    brange = np.maximum(bmax - bmin, 1e-8)
+    vn = (verts - bmin) / brange  # (V, 3)
 
+    # Per-face normalized positions: (F, 3, 3) = [face, vert, xyz]
+    fv = vn[faces]
+
+    # Face normals (un-normalized — only sign/dominant axis matters)
+    e1 = verts[faces[:, 1]] - verts[faces[:, 0]]
+    e2 = verts[faces[:, 2]] - verts[faces[:, 0]]
+    normals = np.cross(e1, e2)           # (F, 3)
+    dom = np.argmax(np.abs(normals), axis=1)  # 0=X, 1=Y, 2=Z per face
+
+    # Split the mesh: each face gets its own 3 vertices so UV seams are clean
+    n_faces = len(faces)
+    new_verts = verts[faces.reshape(-1)]          # (F*3, 3)
+    new_faces = np.arange(n_faces * 3).reshape(n_faces, 3)
+    fv_flat = fv.reshape(n_faces * 3, 3)          # (F*3, xyz)
+
+    uvs = np.zeros((n_faces * 3, 2), dtype=np.float32)
+
+    # X-dominant (left/right sides): project along Z and Y
+    mask = np.repeat(dom == 0, 3)
+    uvs[mask, 0] = fv_flat[mask, 2]   # z → u
+    uvs[mask, 1] = fv_flat[mask, 1]   # y → v
+
+    # Y-dominant (top/bottom): project along X and Z
+    mask = np.repeat(dom == 1, 3)
+    uvs[mask, 0] = fv_flat[mask, 0]   # x → u
+    uvs[mask, 1] = fv_flat[mask, 2]   # z → v
+
+    # Z-dominant (front/back): project along X and Y — the main facade view
+    mask = np.repeat(dom == 2, 3)
+    uvs[mask, 0] = fv_flat[mask, 0]   # x → u
+    uvs[mask, 1] = fv_flat[mask, 1]   # y → v
+
+    uvs = np.clip(uvs, 0.0, 1.0)
+
+    result = trimesh.Trimesh(vertices=new_verts, faces=new_faces, process=False)
     material = trimesh.visual.material.PBRMaterial(
         baseColorTexture=img_rgb,
         metallicFactor=0.0,
         roughnessFactor=0.8,
     )
-    mesh.visual = trimesh.visual.TextureVisuals(uv=uv, material=material)
-    return mesh
+    result.visual = trimesh.visual.TextureVisuals(uv=uvs, material=material)
+    return result
 
 
 def main():
