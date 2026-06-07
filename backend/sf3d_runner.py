@@ -36,9 +36,10 @@ VENV_PYTHON  = Path(os.getenv("SF3D_VENV_PYTHON",  str(_DEFAULT_VENV_PYTHON)))
 RUN_PY       = SF3D_DIR / "run.py"
 PRETRAINED   = os.getenv("SF3D_MODEL", "stabilityai/stable-fast-3d")
 # Low-poly knobs (the whole point of using SF3D on an 8GB card).
-TEX_RES      = os.getenv("SF3D_TEXTURE_RES", "1024")
+TEX_RES      = os.getenv("SF3D_TEXTURE_RES", "1536")     # texture atlas res; main visual lever
 REMESH       = os.getenv("SF3D_REMESH", "none")          # none | triangle | quad
 VERTEX_COUNT = os.getenv("SF3D_VERTEX_COUNT", "-1")      # -1 = model default
+FG_RATIO     = os.getenv("SF3D_FOREGROUND_RATIO", "0.85")  # how much of the frame the subject fills
 TIMEOUT_SECS = int(os.getenv("SF3D_TIMEOUT", str(10 * 60)))
 
 GLB_STORE = Path(__file__).parent / "glb_store"
@@ -66,6 +67,7 @@ def run_sf3d(image_b64: str, job_id: str) -> str:
             "--pretrained-model", PRETRAINED,
             "--device", "cuda",
             "--texture-resolution", TEX_RES,
+            "--foreground-ratio", FG_RATIO,
             "--remesh_option", REMESH,
         ]
         if VERTEX_COUNT and VERTEX_COUNT != "-1":
@@ -73,6 +75,10 @@ def run_sf3d(image_b64: str, job_id: str) -> str:
 
         env = os.environ.copy()
         env["CUDA_VISIBLE_DEVICES"] = "0"
+        # expandable_segments reclaims the ~400MB PyTorch otherwise strands to
+        # fragmentation during texture baking — required for TEX_RES >= 1536 to
+        # fit the 8GB card (1024 fits without it). Respect an explicit override.
+        env.setdefault("PYTORCH_CUDA_ALLOC_CONF", "expandable_segments:True")
         hf = os.getenv("HF_TOKEN", "")
         if hf and not hf.startswith("your_"):
             env["HF_TOKEN"] = hf

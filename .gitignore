@@ -247,6 +247,21 @@ rendering-pipeline/stable-fast-3d/demo_files/
 rendering-pipeline/stable-fast-3d/**/build/
 rendering-pipeline/stable-fast-3d/**/*.egg-info/
 
+# Hunyuan3D-2 — lean-vendored like SF3D: keep source + env_maps, drop venv/build/runtime caches.
+# Model weights live in ~/.cache/huggingface + ~/.cache/hy3dgen, never in-repo.
+rendering-pipeline/hunyuan3d-2/.venv-hunyuan/
+rendering-pipeline/hunyuan3d-2/**/build/
+rendering-pipeline/hunyuan3d-2/**/*.egg-info/
+rendering-pipeline/hunyuan3d-2/gradio_cache/
+rendering-pipeline/hunyuan3d-2/save_dir/
+rendering-pipeline/hunyuan3d-2/assets/example_images/
+rendering-pipeline/hunyuan3d-2/assets/example_mv_images/
+rendering-pipeline/hunyuan3d-2/assets/qrcode/
+rendering-pipeline/hunyuan3d-2/assets/images/
+rendering-pipeline/hunyuan3d-2/assets/report/
+rendering-pipeline/hunyuan3d-2/assets/demo.png
+rendering-pipeline/hunyuan3d-2/assets/*.glb
+
 # Runtime 3D + image-generation artifacts (temp images, meshes, render output)
 backend/glb_store/
 *.glb

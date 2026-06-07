@@ -3,6 +3,8 @@ POST /render3d/generate-3d   — kick off a Stable Fast 3D job
 GET  /render3d/status/{id}   — poll job state
 GET  /render3d/download/{id} — download the finished GLB
 """
+import logging
+import os
 import threading
 from typing import Optional
 
@@ -13,8 +15,26 @@ from pydantic import BaseModel
 from jobs import create_job, get_job, update_job, JobStatus
 from gpu_coordinator import gpu_lock_sync, unload_llm
 from sf3d_runner import run_sf3d
+from hunyuan_runner import run_hunyuan
+
+log = logging.getLogger("render3d")
+
+# Which local image->3D backend to use. "hunyuan" = high-detail Hunyuan3D-2mini
+# (~4GB peak, ~17x SF3D geometry, untextured for now); "sf3d" = the lighter,
+# textured low-poly fallback. Default to hunyuan; fall back to sf3d if its venv
+# isn't set up so the endpoint never hard-fails on a fresh checkout.
+RENDERER_3D = os.getenv("RENDERER_3D", "hunyuan").strip().lower()
+_RUNNERS = {"hunyuan": run_hunyuan, "sf3d": run_sf3d}
 
 router = APIRouter(prefix="/render3d", tags=["render3d"])
+
+
+def _select_runner():
+    runner = _RUNNERS.get(RENDERER_3D)
+    if runner is None:
+        log.warning("Unknown RENDERER_3D=%r; falling back to sf3d", RENDERER_3D)
+        return run_sf3d
+    return runner
 
 
 class Generate3DRequest(BaseModel):
@@ -33,10 +53,11 @@ class JobStatusResponse(BaseModel):
 def _render_task(job_id: str, image_b64: str) -> None:
     try:
         update_job(job_id, status=JobStatus.RUNNING)
-        # One 8GB GPU: hold the GPU lock and evict the LLM so SF3D has room.
+        runner = _select_runner()
+        # One 8GB GPU: hold the GPU lock and evict the LLM so the renderer has room.
         with gpu_lock_sync():
             unload_llm()
-            glb_path = run_sf3d(image_b64, job_id)
+            glb_path = runner(image_b64, job_id)
         update_job(job_id, status=JobStatus.DONE, glb_path=glb_path)
     except Exception as exc:
         update_job(job_id, status=JobStatus.ERROR, error=str(exc))
